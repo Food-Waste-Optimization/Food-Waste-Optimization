@@ -2,11 +2,8 @@ __pycache__
 .coverage
 htmlcov
 
-__pycache__
 *.pyc
 *.pyo
-.coverage
-htmlcov
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
@@ -15,6 +12,4 @@ pip-delete-this-directory.txt
 nosetests.xml
 coverage.xml
 
-basic_mvp_data/
-*.xlsx
-*.csv
+basic_mvp_data/*
