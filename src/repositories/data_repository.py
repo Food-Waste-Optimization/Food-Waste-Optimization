@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 class DataRepository:
     """Class to handle connection to data streams and manage data operations."""
@@ -86,6 +88,39 @@ class DataRepository:
 
         # Remove timezone information
         return daily_sum_diff.tz_convert(None)
+    
+    def get_capacity_by_hour(self, filename):
+        """
+        Calculate the hourly difference of people entering and leaving based on 
+        supersight camera data.
+
+        Args:
+            filename (str): Path to the CSV file with supersight data.
+
+        Returns:
+            pandas.Series: The daily difference in people flow.
+        """
+        # Read people flow data from CSV
+        data = pd.read_csv(filepath_or_buffer=filename, sep=",")
+
+        # main branchissä tämä on väärin ja pitää korjata
+        # if phonename == S113, switch counts
+        data.loc[data['phoneName'] == 'S113', ['countIn', 'countOut']] = data.loc[data['phoneName'] == 'S113', ['countOut', 'countIn']].values
+
+        
+        # Convert date column to datetime and set it as the index
+        data["Date"] = pd.to_datetime(data["dateCreated"])
+        data.set_index("Date", inplace=True)
+
+        hourly_counts = data.resample('H').sum()
+
+        hourly_counts["cumulativeIn"] = hourly_counts["countIn"].cumsum()
+        hourly_counts["cumulativeOut"] = hourly_counts["countOut"].cumsum()
+
+        hourly_counts["peopleInside"] = hourly_counts["cumulativeIn"] - hourly_counts["cumulativeOut"]
+        print(hourly_counts)
+
+        return hourly_counts["peopleInside"]
 
     def merge_multiple_excel_sheets(self, filename):
         """
@@ -125,3 +160,11 @@ class DataRepository:
         return combined_data
 
 data_repository = DataRepository()
+data = data_repository.get_capacity_by_hour("src/data/basic_mvp_data/supersight_new.csv")
+print(data)
+plt.plot(data.index, data.values)
+plt.ylabel("peopleInside Exactum")
+plt.xlabel("Date")
+
+plt.show()
+
