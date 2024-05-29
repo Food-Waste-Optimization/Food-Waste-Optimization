@@ -5,6 +5,6 @@ services:
     image: food-app
     build: .
     volumes:
-      - ~/tkt_msns/fwo/basic_mvp_data/:src/data/basic_mvp_data/
+      - ~/tkt_msns/fwo/data/basic_mvp_data/tuntidata2.xlsx:app/src/data/basic_mvp_data
     ports:
       - 5000:5000
