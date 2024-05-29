@@ -4,5 +4,7 @@ services:
   app:
     image: food-app
     build: .
+    volumes:
+      - ~/tkt_msns/fwo/basic_mvp_data/:src/data/basic_mvp_data/
     ports:
       - 5000:5000
