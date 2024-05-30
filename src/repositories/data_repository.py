@@ -26,10 +26,10 @@ class DataRepository:
         receipts_by_date_exactum = hourly_customer_exactum.groupby("Date").sum()["Kuitti kpl"]
 
         # Merge multiple Excel sheets into one DataFrame
-        customer_data = self.merge_multiple_excel_sheets("data/kumpula_data.xlsx")
+        customer_data = self.merge_multiple_excel_sheets("../../data/kumpula_data.xlsx")
         
         # Get people flow data by date
-        supersight_data = self.get_people_flow_by_date("data/supersight-raw-data.csv")
+        supersight_data = self.get_people_flow_by_date("../../data/supersight-raw-data.csv")
 
         # Merge receipts, customer data, and people flow data
         data = pd.merge(receipts_by_date_exactum, customer_data, on="Date", how="inner")
