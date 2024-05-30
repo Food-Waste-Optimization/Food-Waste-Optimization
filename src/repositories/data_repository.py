@@ -17,7 +17,7 @@ class DataRepository:
             pandas.DataFrame: The processed data.
         """
         # Read hourly customer data from Excel
-        hourly_customer = pd.read_excel(io="data/tuntidata2.xlsx", index_col=0)
+        hourly_customer = pd.read_excel(io="/data/tuntidata2.xlsx", index_col=0)
 
         # Filter data for the Exactum restaurant
         hourly_customer_exactum = hourly_customer[hourly_customer["Ravintola"] == "620 Exactum"]
