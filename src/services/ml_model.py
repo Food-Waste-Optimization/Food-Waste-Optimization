@@ -6,10 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+MODEL_PATH = "src/data/finalized_model.sav"
+SCALER_PATH = "src/data/scaler_model.sav"
 
 class ML_Model:
-    def __init__(self, data):
+    def __init__(self, data, prediction_data):
         self.data = data
+        self.prediction_data = prediction_data
         self.train_x = None
         self.test_x = None
         self.train_y = None
@@ -17,53 +20,64 @@ class ML_Model:
         self.model = None
         self.scaler = StandardScaler()
 
-        self.setup_model()
+        self._setup_model()
+        self._setup_data()
+
     
-    def setup_model(self):
+    def _setup_model(self):
         return None
     
-    def split_data(self, X, y):
-        self.train_x, self.test_x, self.train_y, self.test_y = train_test_split(X, y, test_size=0.02, random_state=None, shuffle=True, stratify=None)
+    def _setup_data(self):
+        return None
+    
+    def _split_data(self, X, y, test_size=0.1):
+        self.train_x, self.test_x, self.train_y, self.test_y = train_test_split(X, y, test_size=test_size, random_state=None, shuffle=True, stratify=None)
     
     def predict(self, weekday=0):
-        features = self.get_avg_of_last_days(20)
-        features = features.drop(["620 Exactum"], axis="columns")
-        features.at[0,"Weekday"] = weekday
+        """ Get predicted meals sold for day "weekday".
+        Uses average of last "x" days as input data.
+        """
+        features = self.get_avg_of_last_days().values
+
+        features[-1] = weekday
 
         features = self.scaler.transform(features)
 
         return int(self.model.predict(features)[0])
 
-    def get_avg_of_last_days(self, days=7):
-        """Get the average of all features of the last
-        num days. In theory this will give the model a better
-        capability of predicting according to larger trends
-        than previous day.
-
-        Default is 7 days
-
-        Returns: Dataframe of one entry which is avg of last num days
+    def get_avg_of_last_days(self, days=5):
         """
-        df = self.data.iloc[-days:].reset_index(drop=True)
-        return pd.DataFrame(df.mean(axis=0)).T
+        Get the average of all numeric features of the last `days` days.
+        In theory, this will give the model a better capability of predicting 
+        according to larger trends than just the previous day.
+
+        Default is 5 days.
+
+        Returns: DataFrame of one entry which is the average of the last `days` days.
+        """
+        df = self.prediction_data.iloc[-days:].reset_index(drop=True)
+        
+        # Convert all columns to numeric, coercing errors to NaN
+        df = df.apply(pd.to_numeric, errors='coerce')
+        
+        # Compute the mean, skipping NaN values
+        numeric_avg = df.mean(axis=0, skipna=True)
+        
+        return pd.DataFrame(numeric_avg).T
 
 
     def test(self):
-        y_pred = [self.predict(self.test_x["Weekday"])]
-        test_y = self.test_y.values
-        print(f"correct: {test_y}, predicted: {y_pred}")
-        mse = mean_squared_error(test_y, y_pred)
-        mae = mean_absolute_error(test_y, y_pred)
-        
-        params = pd.Series(self.model.coef_, index=self.test_x.columns)
-        print(params)
-        err = np.std([self.model.fit(*resample(self.train_x, self.train_y)).coef_
-              for i in range(1000)], 0)
-        
-        print(pd.DataFrame({'effect': params.round(0),
-                    'error': err.round(0)}))
-        
-        #r2 = r2_score(test_y, y_pred)
-        r2 = 1
-        return mse, mae, r2
+        r2 = self.model.score(self.test_x, self.test_y)
 
+        res = []
+        for i in range(len(self.test_x)):
+            x = self.scaler.transform(self.test_x[i].reshape(1,-1))
+            y = self.test_y[i]
+            prediction = self.model.predict(x)
+            error = abs(prediction[0] - y)
+            res.append(error)
+            #print(prediction[0], y, "error: ", error)
+        
+        mae = np.array(res).mean()
+
+        return None, mae, r2

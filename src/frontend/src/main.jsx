@@ -30,6 +30,16 @@ msalInstance.initialize().then(() => {
     }
   })
 
+
+const router = createBrowserRouter([
+  { path: "/", element: <GuestView /> }, 
+  { path: "/fwowebserver/", element: <GuestView /> }, 
+  { path: "/sales/*", element: <App /> },
+  { path: "/menus/*", element: <MenuView />},
+  { path: "/admin/*", element: <AdminView />},
+  { path: "/upload/*", element: <UploadView />}
+])  
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Router>

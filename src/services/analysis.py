@@ -10,8 +10,8 @@ class ModelService:
     between models and the app.
     """
     def __init__(self):
-        self.data = data_repository.get_df_from_stationary_data()
-        self.model = LinearRegressionModel(data=self.data)
+        self.data = data_repository.roll_means()
+        self.model = NeuralNetwork(data=self.data)
 
 
     def learn(self):
@@ -22,8 +22,9 @@ class ModelService:
 
     def test_model(self):
         self.model.learn()
-        mse, mae, r2 = self.model.test()
-        return f"Mean squared error: {mse}\nMean absolute error: {mae}\nR^2: {r2}"
+        return self.model.test()
+        #mse, mae, r2 = self.model.test()
+        #return f"Mean squared error: {mse}\nMean absolute error: {mae}\nR^2: {r2}"
 
 
 # HOW TO USE
@@ -31,8 +32,12 @@ class ModelService:
 def example_model():
     s = ModelService()
 
+    s.model.setup_data()
+
     # After defining the class the model must be fitted using
-    s.learn()
+    
+    s.test_model()
+    
     # The data is fetched automatically and now it is ready to make predictions
 
     # Predict using a weekday, e.g. monday = 0, tuesday = 1 ...
@@ -46,7 +51,6 @@ def example_model():
     #    res.append(s.test_model()[1])
     #print(sum(res)/1000)
 
-    return s.predict(2)
+    #return s.predict(2)
 
 #print(example_model())
-

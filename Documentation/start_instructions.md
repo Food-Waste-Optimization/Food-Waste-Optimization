@@ -3,7 +3,7 @@ To start, first clone the project: git clone https://github.com/Food-Waste-Optim
 # To Start with Back End:
 
 - Make sure you have python (3.9) and poetry installed
-- Create file /data/basic_mvp_data/
+- Create file src/data/basic_mvp_data/
 - Add data files from slack-channel #data into folder
 - Go to root and run:
   
@@ -29,7 +29,7 @@ npm install
 
 - Currently, these additional libraries are installed into project: axios, react-router-dom, bulma, chart.js, react-chartjs-2
 
-- To install dependencies go to React root folder (/frontend) and run:
+- To install dependencies go to React root folder (src/frontend) and run:
   
 `npm install`
 

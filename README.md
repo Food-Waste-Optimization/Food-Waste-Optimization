@@ -16,7 +16,7 @@ Because the project is coursework, it is not possible to contribute outside the 
 - [Timesheets](https://study.cs.helsinki.fi/projekti/timelogs)
 - Team [availability](https://docs.google.com/spreadsheets/d/13Yey7ICnYVVUK0rfN_uN6dhl0YFSL-u4YQSJD6pJmns)
 <!---
-- [Staging server](Openshift setup pending)
+- [Staging server](Megasense link here, as soon as authentication works reasonably)
 --->
 
 ### Documentation
@@ -28,20 +28,21 @@ Because the project is coursework, it is not possible to contribute outside the 
 
 
 ### Installation & Running Instructions
+<!--- 
+You can run the project locally in a [Docker](https://www.docker.com/) container.
+
 - Download the code and make sure you have all the needed dependencies installed
 - `docker-compose build` will build the containers. This needs to be run after changes in code.
 - `docker-compose up` will start the containers. you probably need to exit with `CTRL-C` to get back to shell. This should also stop the containers, but not remove them or remove the docker container network.
 - The system will print out URLs to try.
 - `docker-compose down` will stop the containers and remove containers & container network.
+--->
+Currently it is not possible to run the containers locally, but we are looking at returning this option at a later time.
 - [Instructions](Documentation/start_instructions.md) for running in local non-container development environment. (Project team only, as this needs current data files.)
   
 ### Further information
 <!---
-Current [live system](Openshift setup pending)
---->
-<!--- 
-You can run the project locally in a [Docker](https://www.docker.com/) container.
-Detailed instructions will be provided as the project matures.
+Current [live system](Megasense link here, as soon as authentication works reasonably)
 --->
 - Currently added extensions:
   - flask-cors

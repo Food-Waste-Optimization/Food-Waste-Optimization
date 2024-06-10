@@ -12,7 +12,7 @@ class DataRepository:
         - Reads customer data and receipt counts.
         - Merges customer data, receipt counts, and people flow data.
         - Calculates next day's waste and filters the data.
-
+        
         Returns:
             pandas.DataFrame: The processed data.
         """
@@ -25,35 +25,40 @@ class DataRepository:
         # Aggregate receipt counts by date for Exactum
         receipts_by_date_exactum = hourly_customer_exactum.groupby("Date").sum()["Kuitti kpl"]
 
-        # Merge multiple Excel sheets into one DataFrame
-        customer_data = self.merge_multiple_excel_sheets("src/data/basic_mvp_data/kumpula_data.xlsx")
-        
+        customer_data = pd.read_csv("src/data/basic_mvp_data/kumpula_lounaat_kat.csv", sep=";", skiprows=2)
+        customer_data = customer_data.drop([0,1])
+        customer_data = customer_data.drop(columns=customer_data.columns[1:-14], axis="columns")
+        customer_data = customer_data.drop(columns=customer_data.columns[-1], axis="columns")
+
+        customer_data["Date"]  = pd.to_datetime(customer_data["Unnamed: 0"])
+        customer_data = customer_data.drop(columns=customer_data.columns[0], axis="columns")
+
         # Get people flow data by date
-        supersight_data = self.get_people_flow_by_date("src/data/basic_mvp_data/supersight-raw-data.csv")
+        #supersight_data = self.get_people_flow_by_date("src/data/basic_mvp_data/supersight-raw-data.csv")
 
         # Merge receipts, customer data, and people flow data
         data = pd.merge(receipts_by_date_exactum, customer_data, on="Date", how="inner")
-        data = pd.merge(data, supersight_data, on="Date", how="inner")
+
+        data.set_index("Date", inplace=True)
+        #data = pd.merge(data, supersight_data, on="Date", how="inner")
 
         # Calculate next day's waste and fill NaN values with 0
-        data = self.get_previous_day_sold_meals(data).fillna(value=0)
+        data = data.fillna(value=0)
 
         # Add a column for the weekday
         data['Weekday'] = data.index.dayofweek
 
-        return data
+        #Change percentage strings to a float between 0 and 1
+        for column in data:
+            if column[0] == "%":
+                data[column] = data[column].str.replace("%", '')
+                data[column] = data[column].str.replace(" ", '')
+                data[column] = data[column].str.replace(",", '.').astype(float)
+                data[column] = data[column] / 100
 
-    def get_previous_day_sold_meals(self, data):
-        """
-        Add a column for yesterdays num of sold meals.
+        self.get_menu_items()
 
-        Args:
-            data (pandas.DataFrame): The DataFrame to modify.
 
-        Returns:
-            pandas.DataFrame: The modified DataFrame with the new column.
-        """
-        data['Sold meals yesterday'] = data['620 Exactum'].shift(1)
         return data
 
     def get_people_flow_by_date(self, filename):
@@ -84,41 +89,49 @@ class DataRepository:
         # Remove timezone information
         return daily_sum_diff.tz_convert(None)
 
-    def merge_multiple_excel_sheets(self, filename):
-        """
-        Combine data from multiple Excel sheets into one DataFrame.
 
-        Args:
-            filename (str): Path to the Excel file.
+    def get_menu_items(self):
 
-        Returns:
-            pandas.DataFrame: The combined data from multiple sheets.
-        """
-        # Read multiple sheets from Excel file
-        excel_data = pd.read_excel(io=filename, sheet_name=None, skiprows=1, index_col=0)
+        # Save data file as excel and gather relevant data into dataframe    
+        csv_path = "src/data/basic_mvp_data/kumpula_menu.csv"
+        excel_path = "src/data/basic_mvp_data/kumpula_menu.xlsx"
+        read_file_product = pd.read_csv(csv_path, sep=";")
+        read_file_product.to_excel(excel_path, index=None, header=False)
+        menu_data = pd.read_excel("src/data/basic_mvp_data/kumpula_menu.xlsx")
+        menu_data = menu_data.drop([0, 1], axis=0)
+        menu_data = menu_data.drop(columns=menu_data.columns[0:-3])
+        menu_data.drop(axis='columns', columns='Total.2', inplace=True)
+        menu_data.dropna(axis=0, how='all', inplace=True)
+        menu_data.rename(columns={menu_data.columns[0]: 'Menu item'}, inplace=True)
+        menu_data.rename(columns={menu_data.columns[1]: 'Meals sold'}, inplace=True)
+        menu_data["Date"] = np.nan
 
-        # Extract and process data for Exactum
-        sold_meals_exactum = excel_data["Myydyt lounaat"]["620 Exactum"][1:]
-        cols_for_exactum = excel_data["Myytyjen lounaiden suhde"].columns[-14:]
-        dist_sold_meals_exactum = excel_data["Myytyjen lounaiden suhde"][cols_for_exactum][1:]
+        # Save dates that are among menu item data into their own column
+        menu_data.reset_index()
+        for indexx, row in menu_data.iterrows():
+            if len(row['Menu item']) == 10 and row['Menu item'][0] == "2":
+                menu_data.loc[indexx, "Date"] = row['Menu item']
+            else:
+                menu_data.loc[indexx, "Date"] = menu_data.loc[indexx-1, "Date"]
 
-        cols_for_exactum = excel_data["Biojäte"].columns[10:-5]
-        biowaste_exactum = excel_data["Biojäte"][cols_for_exactum]
 
-        # Set up a new header for biowaste data
-        new_header = biowaste_exactum.iloc[0]
-        biowaste_exactum = biowaste_exactum[2:]
-        biowaste_exactum.columns = new_header
+        #print(menu_data)
 
-        # Merge all data based on index (date)
-        combined_data = pd.merge(sold_meals_exactum, dist_sold_meals_exactum, left_index=True, right_index=True, how="outer")
-        combined_data = pd.merge(combined_data, biowaste_exactum, left_index=True, right_index=True, how="outer")
+        return menu_data
+    
 
-        # Insert Date column and set it as the index
-        np.insert(combined_data.columns.values, 0, "Date")
-        combined_data["Date"] = pd.to_datetime(combined_data.index.values, dayfirst=True)
-        combined_data = combined_data.set_index(keys="Date")
-
-        return combined_data
+    def roll_means(self, value:int = 5):
+        df = self.get_df_from_stationary_data()
+        #df.set_index('Date', inplace=True)
+        rolling_means = df.rolling(window=value).mean()
+        rolling_means['Next day sold meals'] = df['Total.2'].shift(-1)
+        rolling_means['Weekday'] = df['Weekday']
+        rolling_means.dropna(inplace=True)
+        return rolling_means.apply(pd.to_numeric, errors='coerce')
 
 data_repository = DataRepository()
+
+if __name__ == "__main__":
+    data_repository = DataRepository()
+    data = data_repository.get_df_from_stationary_data()
+    print(data)

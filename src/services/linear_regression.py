@@ -5,10 +5,10 @@ class LinearRegressionModel(ML_Model):
     """Class for linear regression. Uses
     sklearn model.
     """
-    def setup_model(self):
+    def _setup_model(self):
         self.model = LinearRegression(fit_intercept=True, positive=False, copy_X=True)
 
-    def learn(self):
+    def _learn(self):
         y = self.data["620 Exactum"]
         X = self.data.drop("620 Exactum", axis="columns")
 

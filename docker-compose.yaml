@@ -1,23 +1,11 @@
 version: '3.8'
 
 services:
-  webserver:
+  fwoapp:
     image: fwo-backend
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-
+    build: .
     volumes:
     # set this according to where your data folder located
       - /home/Downloads/data:/src/data/basic_mvp_data
     ports:
       - 5000:5000
-
-  client:
-    image: fwo-frontend
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-
-    ports:
-      - 3000:8080
