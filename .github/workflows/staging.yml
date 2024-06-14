@@ -22,10 +22,10 @@ jobs:
             password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push
-        uses: docker/build-push-action@v2
-        with:
-            push: true
-            tags: ohjelmistotuotantoprojekti/food-waste-optimization:staging
+        run: |
+          docker build --build-arg DB_USER=${{ secrets.DB_USERNAME }} --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          --build-arg DB_HOST=${{env.DB_HOST}} --build-arg DB_NAME=${{env.DB_NAME}} -t ohjelmistotuotantoprojekti/food-waste-optimization:staging .
+          docker push ohjelmistotuotantoprojekti/food-waste-optimization:staging
 
     Build-and-push-ANN:
       name: Build and push Neural Network image to Docker Hub
@@ -44,7 +44,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-            contex: .
+            context: .
             file: Dockerfile.ANN
             push: true
             tags: ohjelmistotuotantoprojekti/food-waste-optimization:ann

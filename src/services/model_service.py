@@ -100,6 +100,18 @@ class ModelService:
         """
         day_offset = list(range(0, num_of_days))
         return list(map(self.predict, day_offset))
+    
+    def predict_occupancy(self):
+        """Fetches the average occupancy by hour by day by restaurant
+        for all restaurants as a dictionary.
+
+        To get occupancy for a given restaurant and day, simply use 
+        dict[restaurant_name][day_as_int] = [avg occupancy for hours 0-23]
+
+        Returns:
+            dict: above given structure
+        """
+        return self.data_repo.get_average_occupancy()
 
 # HOW TO USE
 
@@ -113,12 +125,13 @@ def example_model():
 
 if __name__ == "__main__":
     model = ModelService()
-    model.fit_and_save()
-    model.load_model()
-    print(model.predict_next_week(5))
-    model.test_model()
-    predicted_value = model.predict(2)
-    print(predicted_value)
-    print("Saving predicted value to file")
-    with open('src/data/predicted.txt', "w") as file:
-        file.write(str(predicted_value))
+    print(model.predict_occupancy())
+    #model.fit_and_save()
+    #model.load_model()
+    #print(model.predict_next_week(5))
+    #model.test_model()
+    #predicted_value = model.predict(2)
+    #print(predicted_value)
+    #print("Saving predicted value to file")
+    #with open('src/data/predicted.txt', "w") as file:
+    #    file.write(str(predicted_value))

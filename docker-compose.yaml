@@ -2,10 +2,43 @@ version: '3.8'
 
 services:
   fwoapp:
-    image: fwo-backend
+    image: fwoapp
     build: .
     volumes:
     # set this according to where your data folder located
-      - /home/Downloads/data:/src/data/basic_mvp_data
+      - ./data:/app/src/data/
+    
+    environment:
+#      DB_USER: /run/secrets/db_user
+#      DB_PASSWORD_FILE: /run/secrets/db_password
+#      DB_HOST: /run/secrets/db_host
+#      DB_NAME: /run/secrets/db_name
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_NAME: ${DB_NAME}      
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
+      
     ports:
       - 5000:5000
+
+    container_name: fwoapp
+
+#    secrets:
+#      - db_user
+#      - db_password
+#      - db_host
+#      - db_name
+
+
+#secrets:
+#  db_user:
+#    file: ./.secrets/db_user.txt
+#    external: true
+#  db_password:
+#    file: ./.secrets/db_password.txt
+#    external: true
+#  db_host:
+#    file: ./.secrets/db_hostname.txt
+#  db_name:
+#    file: ./.secrets/db_name.txt

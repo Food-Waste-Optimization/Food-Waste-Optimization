@@ -18,6 +18,7 @@ basic_mvp_data/
 *.savd())
 
 src/data/
+.*
+data
 node_modules/
 src/frontend/ReactFrontEnd/
-

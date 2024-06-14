@@ -2,3 +2,14 @@
 .gitignore
 Dockerfile
 __pycache__
+src/data
+.env
+src/frontend/.env
+LICENSE
+.pylint
+.coveragerc
+.coveragerc
+.*
+data
+Dockerfile.ANN
+src/.*

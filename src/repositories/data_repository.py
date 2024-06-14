@@ -92,17 +92,41 @@ class DataRepository:
         return daily_sum_diff.tz_convert(None)
     
     
-    def get_average_occupancy_by_restaurant(self, restaurant, weekday):
+    def get_average_occupancy(self):
+        """Computes the average occupancy of three restaurants
+        in Kumpula. Creates a dictionary that has the restaurant
+        as a main key and the day as another. Then, for each day it holds a list
+        for the average occupancy for each hour of the day (0-23).
+
+        Currently only works for three restaurants.
+
+        Returns:
+            dict: avg occupancy by hour for each rest for each day
+        """
+
         df = pd.read_excel(io="src/data/basic_mvp_data/tuntidata2.xlsx", index_col=0)
 
         df = df.replace({"600 Chemicum": "Chemicum", "610 Physicum": "Physicum", "620 Exactum": "Exactum"})
 
         df["weekday"] = df.index.dayofweek
 
-        grouped_df = df.groupby(["Ravintola", "Kuitin tunti", "weekday"]).mean()
+        grouped_df = df.groupby(["Ravintola", "weekday", "Kuitin tunti"]).mean().to_dict()["Kuitti kpl"]
+
+        restaurants = ["Chemicum", "Physicum", "Exactum"]
+        
+        occupancy = {
+            restaurant: {
+                day: [
+                    grouped_df.get((restaurant, day, hour), 0) 
+                    for hour in range(24)
+                ]
+                for day in range(7)
+            }
+            for restaurant in restaurants
+        }
 
 
-        return grouped_df.loc[restaurant, :, weekday].values.reshape(1,-1)[0]
+        return occupancy
         
 
 
@@ -155,6 +179,13 @@ class DataRepository:
             float: ratio meals_sold:waste_produced per 1 customer
         """
         df = pd.read_csv("src/data/basic_mvp_data/Kumpula biojäte.csv", sep=";", skiprows=2, index_col=0)
+
+        df2 = pd.read_excel(io="src/data/basic_mvp_data/tuntidata2.xlsx", index_col=0).groupby(["Date", "Ravintola"])
+
+
+        print(df2)
+
+
         
         ratio = 0.75 # example
 
@@ -192,4 +223,5 @@ if __name__ == "__main__":
     dates = pd.to_datetime(pd.Series(['2024-06-01', '2024-06-01', '2024-06-03', '2024-06-13'], name="date"))
     print(data_repository.day_info(dates))
 
+    # print(data_repository.get_average_occupancy())
 
