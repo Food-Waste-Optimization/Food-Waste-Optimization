@@ -159,6 +159,16 @@ class DataRepository:
         ratio = 0.75 # example
 
         return ratio
+    
+    def day_info(self, dates:pd.Series):
+
+        s_d = dates.drop_duplicates()
+        s_wd = s_d.apply(lambda x: x.isoweekday())
+        s_wnr = s_d.apply(lambda x: x.isocalendar()[1])
+
+        df = pd.DataFrame({"date": s_d, "weekday": s_wd, "weeknr": s_wnr})
+
+        return df
 
 
 data_repository = DataRepository()
@@ -177,6 +187,9 @@ if __name__ == "__main__":
     #rs = db.session.execute(text("SELECT * from test"))
     #result = rs.fetchone()
     #print(result)
-    print(data_repository.get_avg_meals_waste_ratio())
+    #print(data_repository.get_avg_meals_waste_ratio())
+
+    dates = pd.to_datetime(pd.Series(['2024-06-01', '2024-06-01', '2024-06-03', '2024-06-13'], name="date"))
+    print(data_repository.day_info(dates))
 
 
