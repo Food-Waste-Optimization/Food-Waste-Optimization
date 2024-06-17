@@ -53,7 +53,7 @@ COPY . .
 COPY --from=BUILD_FRONT /app/dist/ /app/src/frontend/dist
 
 RUN chmod -R 777 * && poetry lock && poetry install --without dev && \
-find /app/src/frontend -mindepth 1 ! -regex '^/app/src/frontend/dist\(/.*\)?' -delete && \
+rm -r /app/src/frontend/node_modules && \
 rm -r /app/Documentation /app/README.md /app/docker-compose.yaml
 
 EXPOSE 5000
