@@ -137,36 +137,6 @@ class DataRepository:
 
         return occupancy
 
-    def get_menu_items(self):
-
-        # Save data file as excel and gather relevant data into dataframe
-        csv_path = "src/data/basic_mvp_data/kumpula_menu.csv"
-        excel_path = "src/data/basic_mvp_data/kumpula_menu.xlsx"
-        read_file_product = pd.read_csv(csv_path, sep=";")
-        read_file_product.to_excel(excel_path, index=None, header=False)
-        menu_data = pd.read_excel("src/data/basic_mvp_data/kumpula_menu.xlsx")
-        menu_data = menu_data.drop([0, 1], axis=0)
-        menu_data = menu_data.drop(columns=menu_data.columns[0:-3])
-        menu_data.drop(axis='columns', columns='Total.2', inplace=True)
-        menu_data.dropna(axis=0, how='all', inplace=True)
-        menu_data.rename(
-            columns={menu_data.columns[0]: 'Menu item'}, inplace=True)
-        menu_data.rename(
-            columns={menu_data.columns[1]: 'Meals sold'}, inplace=True)
-        menu_data["Date"] = np.nan
-
-        # Save dates that are among menu item data into their own column
-        menu_data.reset_index()
-        for indexx, row in menu_data.iterrows():
-            if len(row['Menu item']) == 10 and row['Menu item'][0] == "2":
-                menu_data.loc[indexx, "Date"] = row['Menu item']
-            else:
-                menu_data.loc[indexx, "Date"] = menu_data.loc[indexx-1, "Date"]
-
-        # print(menu_data)
-
-        return menu_data
-
     def roll_means(self, value: int = 5):
         df = self.get_df_from_stationary_data()
         #df.set_index('Date', inplace=True)
