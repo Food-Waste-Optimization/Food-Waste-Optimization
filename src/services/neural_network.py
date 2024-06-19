@@ -22,8 +22,13 @@ class NeuralNetwork(ML_Model):
                                   shuffle=True)
 
     def _setup_data(self):
-        y = self.data["Next day sold meals"].values
-        X = self.data.drop("Next day sold meals", axis="columns").values
+        """Expected data input is 
+        Date, Sold meals, weekday, menu
+
+        Sold meals is the value to predict
+        """
+        y = self.data["Sold meals"].values
+        X = self.data.drop("Sold meals", axis="columns").values
 
         self._split_data(X, y)
 
