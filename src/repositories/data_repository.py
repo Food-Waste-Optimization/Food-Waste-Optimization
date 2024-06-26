@@ -1,6 +1,6 @@
 import pandas as pd
-import numpy as np
-from db_repository import db_repo
+
+from .db_repository import db_repo
 
 class DataRepository:
     """Class to handle connection to data streams and manage data operations."""
@@ -21,8 +21,9 @@ class DataRepository:
         """
         data = db_repo.get_sold_meals_data()
 
-        data = self.process_menu_items(data["Dish"])
-            
+        if data:
+            data = self.process_menu_items(data["Dish"])
+
         # run language processing for menu items
         # create weekday column
 

@@ -1,0 +1,105 @@
+openapi: 3.0.3
+info:
+  title: FoodWaste - OpenAPI 3.0
+  description: |-
+    FoodWaste API
+  version: 1.0.11
+paths:
+  /:
+    get:
+      summary: root URL
+      tags:
+        - Root
+      responses:
+        "200":
+          description: successful operation
+  /data/occupancy:
+    get:
+      tags:
+        - Prediction
+      summary: Get occupancy forecast by days
+      description: Get occupancy forecast by days
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to forecast
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Prediction"
+        "400":
+          description: Invalid query argument
+
+  /fwowebserver:
+    get:
+      tags:
+        - Other
+      summary: root URL
+      responses:
+        "200":
+          description: successful operation
+
+  /dbtest:
+    get:
+      tags:
+        - Other
+      summary: Test DB URI
+      responses:
+        "200":
+          description: successful operation
+
+  /api/data:
+    get:
+      tags:
+        - Data
+      summary: ???
+      responses:
+        "200":
+          description: successful operation
+
+  /data/biowaste:
+    get:
+      tags:
+        - Data
+      summary: Get predicted waste
+      responses:
+        "200":
+          description: successful operation
+
+  /data/menus:
+    get:
+      tags:
+        - Data
+      summary: Get menu
+      responses:
+        "200":
+          description: successful operation
+
+components:
+  schemas:
+    Prediction:
+      type: object
+      properties:
+        600 Chemicum:
+          type: number
+          format: float
+          example: 2.3504778
+        610 Physicum:
+          type: number
+          format: float
+          example: 7.873081
+        620 Exactum:
+          type: number
+          format: float
+          example: 2.3242
+        datetime:
+          type: string
+          example: "2024-05-14 09:00:00"
