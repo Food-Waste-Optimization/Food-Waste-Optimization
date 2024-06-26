@@ -30,6 +30,8 @@ msalInstance.initialize().then(() => {
     }
   })
 
+// React root, starts the program. Note the Router - tags, they need to be initialized here to make urls defined in App.jsx to function.
+// msalInstance has to be passed to App as a prop.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Router>

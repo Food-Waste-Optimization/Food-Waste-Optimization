@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+// Setting up routes depending on environment:
 
 let base_api_url= ``
 
@@ -10,27 +11,28 @@ else
 
 const dataApi = `${base_api_url}/api/data`
 
+// get-request used on testing:
 const getDataFromFlask = async () => {
-    console.log('GET - request to flask')
-    console.log(dataApi)
     const result = await axios.get(dataApi)
     console.log(result)
     return result
 }
 
+// Request to fetch data of occupancy presented on GuesView.jsx:
 const getOccupancyOfRestaurantsByHour = async () => {
-    console.log(base_api_url)
     const result = await axios.get(`${base_api_url}/data/occupancy`)
     console.log('getOccupancyOfRestaurantsByHour: ', result)
     return result
 }
 
+// Request to fetch data of biowaste. Presented partly (customer biowaste) on GuestView.jsx and fully on ManagerView.jsx:
 const getBiowastePrediction = async () => {
     const result = await axios.get(`${base_api_url}/data/biowaste`)
     console.log('getBiowastePrediction: ', result)
     return result
 }
 
+// Request to fetch data of division of sold meals. Presented on MenuView.jsx:
 const getDataForMenus = async () => {
     const result = await axios.get(`${base_api_url}/data/menus`)
     console.log('getDataForMenus: ', result)

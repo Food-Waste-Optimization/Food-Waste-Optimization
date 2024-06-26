@@ -6,6 +6,9 @@ from darts.models import ARIMA
 from loguru import logger
 from sklearn.exceptions import NotFittedError
 
+from ..repositories.data_repository import data_repo
+from .neural_network import NeuralNetwork
+
 # run with "poetry run python -m src.services.model_service"
 
 RESTAURANTS = ['600 Chemicum', '610 Physicum', '620 Exactum']
@@ -14,7 +17,7 @@ timestep_per_day = 9    # [8 AM, 9 AM, ... 16 PM]
 
 class ModelService:
     """Class for handling the connection
-    between models and the app.
+    between models, data and the app.
     """
 
     def __init__(self):
@@ -25,8 +28,16 @@ class ModelService:
         # self.predictor_data = data_repo.get_model_predict_data()
         # self.model = NeuralNetwork(data=self.data, prediction_data=self.prediction_data)
 
-        self.models = {}
 
+        # self.data = data_repo.get_model_fit_data()
+
+        # # predict data is not currently used
+        # self.predictor_data = data_repo.get_model_predict_data()
+
+        # self.model = NeuralNetwork(
+        #     data=self.data, prediction_data=self.prediction_data)
+
+        self.models = {}
         self._load_arima()
 
     def _load_arima(self):
@@ -43,20 +54,20 @@ class ModelService:
         for restaurant in RESTAURANTS:
             path_arima = path_root_trained_model / model_name / f"{restaurant}.pt"
             self.models[restaurant] = ARIMA(add_encoders=add_encoders).load(path_arima)
+        
 
-    def predict(self, feature):
+
+    def __predict(self, weekday: int, meal_plan: list):
         """This function will predict sold meals
-        for a specific day using an offset. Will take a mean
-        of last number of days and switches the day to feature.
-
+        for a specific day and meal plan
         Args:
-            feature (int): day of prediction, 0 - monday, 1 - tuesday etc.
-
+            weekday (int): day of prediction, 0 - monday, 1 - tuesday etc.
+            meal_plan (list): dishes to be sold on that day
         Returns:
             int: number of sold meals
         """
         try:
-            return self.model.predict(feature)
+            return self.model.predict(weekday=weekday, dishes=meal_plan)
         except NotFittedError as err:
             print("You must load or fit model first")
 
@@ -70,17 +81,17 @@ class ModelService:
         R^2 value
         """
         try:
-            self.load_model()
+            self.__load_model()
         except NotFittedError as err:
             # no model to load
             print("Model could not be loaded, fitting instead:", err)
-            self.fit_and_save()
+            self.__fit_and_save()
         mse, mae, r2 = self.model.test()
 
         print(
             f"Mean squared error: {mse}\nMean absolute error: {mae}\nR^2: {r2}")
 
-    def fit_and_save(self):
+    def __fit_and_save(self):
         """Will fit the model and the save into a file.
         If unsuccessful, will give error.
         """
@@ -90,7 +101,7 @@ class ModelService:
         except Exception as err: # pylint: disable=W0718
             print("Model could not be fitted:", err)
 
-    def load_model(self):
+    def __load_model(self):
         """This function will load the model. First
         try to load a model and if no model is found,
         will give error.
@@ -101,7 +112,7 @@ class ModelService:
         except Exception as err: # pylint: disable=W0718
             print("Model could not be loaded:", err)
 
-    def predict_waste_by_week(self):
+    def __predict_waste_by_week(self):
         """Predicts food waste for a week
         based on average food waste per customer
         and estimated amount of customers.
@@ -116,23 +127,25 @@ class ModelService:
         for waste_type in waste:
             for restaurant, weight in waste[waste_type].items():
                 waste[waste_type][restaurant] = list(
-                    map(lambda i: i*weight, self.predict_next_week()))
+                    map(lambda i: i*weight, self.__predict_next_week()))
         return waste
 
-    def predict_next_week(self, num_of_days=5):
+    def __predict_next_week(self, num_of_days: int, menu_plan: list):
         """Return a list of predictions
         for the next week from current date.
 
         num_of_days represents the length of week,
         or, how many days the restaurant is open.
 
-        !!!Currently only works for Exactum!!!
+        menu_plan represents the menus for the days.
+        It should be a list of lists. The main list for each day
+        and inner list for each dish.
 
         Returns:
             list of int: list of predictions where index is offset from current day
         """
         day_offset = list(range(0, num_of_days))
-        return list(map(self.predict, day_offset))
+        return list(map(self.__predict, day_offset, menu_plan))
 
     def predict_occupancy(self, num_of_days: int = 5):
         """Fetches the average occupancy by hour by day by restaurant
@@ -165,6 +178,31 @@ class ModelService:
         ret = predictions.to_dict('records')
 
         return ret
+        return self.data_repo.get_average_occupancy()
+    
+    def get_latest_weekly_prediction(self):
+        """Will use data_repository to fetch the latest
+        prediction of sold meals stored in a desired place. Currently
+        in a database. Is necessary to allow faster load
+        times for the website.
+        """
+        pass
+
+    def get_latest_biowaste_prediction(self):
+        """Will use data_repository to fetch the latest
+        biowaste prediction stored in a desired place. Currently
+        in a database. Is necessary to allow faster load
+        times for the website."""
+        pass
+
+    def get_latest_occupancy_prediction(self):
+        """Will use data_repository to fetch the latest
+        prediction of occupancy stored in a desired place. Currently
+        in a database. Is necessary to allow faster load
+        times for the website."""
+        pass
+
+
 
 # HOW TO USE
 
@@ -181,9 +219,9 @@ def example_model():
 
 if __name__ == "__main__":
     model = ModelService()
-    # model.fit_and_save()
-    model.load_model()
-    print(model.predict_waste_by_week())
+    model.__fit_and_save()
+    #model.load_model()
+    #print(model.predict_waste_by_week())
     # print(model.predict_next_week(5))
     # model.test_model()
     # predicted_value = model.predict(2)

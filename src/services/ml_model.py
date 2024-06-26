@@ -5,6 +5,7 @@ from sklearn.utils import resample
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from .language_processor import language_processor
 
 MODEL_PATH = "src/data/finalized_model.sav"
 SCALER_PATH = "src/data/scaler_model.sav"
@@ -31,42 +32,45 @@ class ML_Model:
         return None
 
     def _split_data(self, X, y, test_size=0.1):
+        """Split data into training and test data.
+
+        Args:
+            X (_type_): feature matrix
+            y (_type_): correct value
+            test_size (float, optional): Percentage of test data. Defaults to 0.1.
+        """
         self.train_x, self.test_x, self.train_y, self.test_y = train_test_split(
             X, y, test_size=test_size, random_state=None, shuffle=True, stratify=None)
 
-    def predict(self, weekday=0):
+    def predict(self, weekday: int, menulist: list):
         """ Get predicted meals sold for day "weekday".
-        Uses average of last "x" days as input data.
+        Takes in the weekday and a list of dishes.
+
+        First is processed by NLP for one hot encoding.
+        Also is preprocessed by scaler.
+
+        Returns integer of estimated sold meals.
         """
-        features = self.get_avg_of_last_days().values
+        data = pd.DataFrame([weekday, menulist], columns=["weekday", "Dish"])
+        data["Dish"] = language_processor.process(data["Dish"])
 
-        features[-1] = weekday
-
-        features = self.scaler.transform(features)
+        features = self.scaler.transform(data.values)
 
         return int(self.model.predict(features)[0])
 
-    def get_avg_of_last_days(self, days=5):
-        """
-        Get the average of all numeric features of the last `days` days.
-        In theory, this will give the model a better capability of predicting 
-        according to larger trends than just the previous day.
-
-        Default is 5 days.
-
-        Returns: DataFrame of one entry which is the average of the last `days` days.
-        """
-        df = self.prediction_data.iloc[-days:].reset_index(drop=True)
-
-        # Convert all columns to numeric, coercing errors to NaN
-        df = df.apply(pd.to_numeric, errors='coerce')
-
-        # Compute the mean, skipping NaN values
-        numeric_avg = df.mean(axis=0, skipna=True)
-
-        return pd.DataFrame(numeric_avg).T
-
     def test(self):
+        """Test the model. Might present some
+        problems if the model is not a neural network.
+        
+        Can print the prediction and it's errors for more
+        of an intuitive look into the error.
+
+        Will return None also due to another function
+        expecting three values.
+
+        Returns:
+            float: mean absolute error, r2 value
+        """
         r2 = self.model.score(self.test_x, self.test_y)
 
         res = []

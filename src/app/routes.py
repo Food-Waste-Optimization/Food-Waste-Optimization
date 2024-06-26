@@ -1,17 +1,32 @@
-import traceback
-
 from flask import render_template, jsonify, make_response, request
 from src.services import model_service
 from ..app.app import app
 
+""" 
+    All the routes the app uses are defined here. Data is accessed through the ModelService
+    Currently imports and load_model() are off -> switch these on once the database is running.
+    Once database is in use, import for pandas is not needed anymore.
+"""
+
 model = model_service.ModelService()
 
+# model = model_service.ModelService()
+# model.load_model()
 
+
+"""Route for testing database connection. 
+    Returns:
+        Can be used to return test data
+"""
 @app.route("/dbtest")
 def db_conn_test():
     return "not testing database connection"
 
-
+"""Root URL. Currently does not return anything while running locally - use localhost:8080 instead to access front end.
+    While running on server returns the static files of React build - version. See configuration on app.py.
+    Returns:
+        Static html-file: React build version located on frontend/dist.
+"""
 @app.route("/")
 @app.route("/fwowebserver")
 def initial_view():
@@ -20,12 +35,20 @@ def initial_view():
 
     return resp
 
+"""URL for testing returning prediction data.
+    Returns:
+        JSON: Object containing prediction from predicted.txt. 
+"""
 @app.route('/api/data')
 def get_data_for_wednesday():
     with open('src/data/predicted.txt', mode='r') as file:
         prediction = file.readline()
         return jsonify({'content': prediction })
 
+"""URL for GET requests of data of occupancy. 
+    Returns:
+        JSON: Json Object containing data of occupancy of different restaurants
+"""
 @app.route('/data/occupancy')
 def hardcoded_occupancy_data():
     # data = {'Chemicum': {
@@ -81,7 +104,10 @@ def hardcoded_occupancy_data():
 #     data = model.predict_occupancy()
 #     print('data occupancy: ', data, flush=True)
 #     return data
-
+"""URL for GET requests of data of biowaste.
+    Returns:
+        JSON: Json Object containing data of biowaste of restaurants. 
+"""
 @app.route('/data/biowaste')
 def hardcoded_biowaste_data():
     data =  {'Asiakasbiojäte. tiski (kg) per Kuitti kpl (kg)': {
@@ -157,10 +183,13 @@ def hardcoded_biowaste_data():
         'hallBiowaste': data_dining
     })
 
+"""URL for GET - requests to get data of division of sold lunches.
+    Returns:
+        JSON: Json object containing data of sold lunches by food categories / restaurant.
+"""
 @app.route('/data/menus')
 def hardcoded_menu_data():
     df = pd.read_csv("src/data/basic_mvp_data/Sold lunches.csv", sep=";")
-    print(df.head(), flush=True)
 
     df['Date'] = pd.to_datetime(df['Date'], format="%d.%m.%Y")
     df = df.set_index('Date')

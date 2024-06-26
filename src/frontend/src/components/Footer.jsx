@@ -1,5 +1,7 @@
 import 'bulma/css/bulma.min.css'
 
+// The footer of the App. Contact info, links, meta information etc. goes here. Displayed on bottom of each view. 
+
 const Footer = () => {
 
     return (

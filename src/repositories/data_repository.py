@@ -1,6 +1,8 @@
 import pandas as pd
-
+import numpy as np
 from .db_repository import db_repo
+from ..services.language_processor import language_processor
+
 
 class DataRepository:
     """Class to handle connection to data streams and manage data operations."""
@@ -19,6 +21,7 @@ class DataRepository:
         Returns:
             pandas.DataFrame: The processed data.
         """
+        return None
         data = db_repo.get_sold_meals_data()
 
         if data:
@@ -26,8 +29,15 @@ class DataRepository:
 
         # run language processing for menu items
         # create weekday column
+        data["weekday"] = data.index.dayofweek
 
-        # group into restaurants?
+        print("data repo", data)
+
+        # one hot encoding for menu items using nlp
+        data["Dish"] = language_processor.process_learn(data["Dish"])
+            
+
+        # group into restaurants, by date?
 
         return data
     
@@ -76,8 +86,7 @@ class DataRepository:
             dict: avg occupancy by hour for each rest for each day
         """
 
-        df = pd.read_excel(
-            io="src/data/basic_mvp_data/tuntidata2.xlsx", index_col=0)
+        df = db_repo.get_occupancy_data()
 
         df = df.replace({"600 Chemicum": "Chemicum",
                         "610 Physicum": "Physicum", "620 Exactum": "Exactum"})
@@ -131,14 +140,24 @@ class DataRepository:
         data.pop("Kuitti kpl per Kuitti kpl (kg)")
 
         return data.to_dict()
-    
-    def process_menu_items(self):
-        """One hot encoding of menu items
 
-        Take in pd.Series and return pd.Series
-        but encoded
-        """
-        pass
+
+    def test_db(self):
+        if False:
+            db_repo.insert_biowaste()
+            db_repo.insert_sold_meals()
+            print("inserted")
+
+            print("Restaurants:")
+            print(db_repo.get_restaurant_data().head())
+            print("Biowaste:")
+            print(db_repo.get_biowaste_data().head())
+            print("Categories:")
+            print(db_repo.get_categories_data().head())
+            print("Dishes:")
+            print(db_repo.get_dish_data().head())
+            print("Sold lunches:")
+            print(db_repo.get_sold_meals_data().head())
 
 data_repo = DataRepository()
 

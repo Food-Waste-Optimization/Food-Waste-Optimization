@@ -30,15 +30,14 @@ CREATE TABLE dishes (
     id SERIAL PRIMARY KEY,
     name TEXT,
     carbon_footprint NUMERIC,
-    category_id INTEGER REFERENCES category (id)
+    category_id INTEGER REFERENCES categories (id)
 );
 
 CREATE TABLE sold_lunches (
-    date DATE,
-    time TIME,
+    datetime TIMESTAMP,
     amount INTEGER,
     restaurant_id INTEGER REFERENCES restaurants (id),
     dish_id INTEGER REFERENCES dishes (id),
-    PRIMARY KEY (date, time, restaurant_id, dish_id)
+    PRIMARY KEY (datetime, restaurant_id, dish_id)
 );
 
