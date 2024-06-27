@@ -40,17 +40,34 @@ class DatabaseRepository:
         except Exception as err: # pylint: disable=W0718
             print("Error in trying to load biowaste file or creating DateTime object from it:", err)
 
+        # process data str -> float
+        df.iloc[:,-4:] = df.iloc[:,-4:].astype(float)
+        
+        
+        # Insert restaurants to the database
+        try:
+            df["restaurant_id"] = self.insert_restaurants(df.pop("Restaurant"))
+        except Exception as err:
+            print("Error in inserting restaurant data into database:", err)
+
+        # Eliminate the existing biowaste data from the new data
+        print("df:")
+        print(df.head())
+        print(df.dtypes)
+        df_db = self.get_biowaste_data().set_index("date")
+        print("df_db:")
+        print(df_db)
+        print(df_db.dtypes)
+        df = pd.concat([df, df_db]).drop_duplicates(subset=['date', 'restaurant_id'], keep=False)
+        print("new df:")
+        print(df.head())
+
         # try to process data str -> float and insert into database
         try:
-            df.iloc[:,-4:] = df.iloc[:,-4:].astype(float)
-            df["restaurant_id"] = self.insert_restaurants(df.pop("Restaurant"))
-            df.to_sql(name="biowaste", con=self.database_connection, if_exists="append")
+
+            df.to_sql(name="biowaste", con=self.database_connection, if_exists="append", index=False)
         except Exception as err: # pylint: disable=W0718
-            print(
-                "Error in inserting biowaste data into database. "
-                "The file might be the wrong format. Try replacing ',' with '.':",
-                err
-            )
+            print("Error in inserting biowaste data into database:", err)
 
     def insert_sold_meals(self, filepath="src/data/basic_mvp_data/Sold lunches.csv"):
         """Function to insert sold lunches data from csv file to database.
