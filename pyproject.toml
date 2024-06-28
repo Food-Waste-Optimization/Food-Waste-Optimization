@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -19,8 +20,8 @@ spacy-stanza = "^1.0.4"
 spacy = "^3.7.5"
 flask-sqlalchemy = "^3.1.1"
 psycopg2-binary = "^2.9.9"
-darts = "^0.30.0"
 loguru = "^0.7.2"
+u8darts = "^0.30.0"
 
 
 
@@ -32,6 +33,8 @@ flask-testing = "^0.8.1"
 ipywidgets = "^8.1.3"
 ipykernel = "^6.29.4"
 ruff = "^0.4.10"
+seaborn = "^0.13.2"
+pickleshare = "^0.7.5"
 
 [build-system]
 requires = ["poetry-core"]
