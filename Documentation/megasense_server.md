@@ -10,7 +10,7 @@
 
  #### Access to Megasense
 
- In order to get access using megasense-server, you have to ask for permissions by sending email to the megasense administrative contact person. You will know who this is, if you are a member of the development team needing access to megasense,
+ In order to get access using megasense-server, you have to ask for permissions by sending email to the megasense administrative contact person. You will know who this is, if you are a member of the development team needing access to megasense.
 
  Having permissions to use platform, you can login to using SSH command line tool from linux/MacOS/Win. SSH would be the easiest, although not user friendly, way of using megasense-server.
 

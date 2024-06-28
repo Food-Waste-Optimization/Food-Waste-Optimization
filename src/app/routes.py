@@ -1,4 +1,6 @@
 from flask import render_template, jsonify, make_response, request
+import pandas as pd
+
 from src.services import model_service
 from ..app.app import app
 

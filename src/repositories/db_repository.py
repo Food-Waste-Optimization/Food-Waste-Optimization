@@ -14,6 +14,8 @@ class DatabaseRepository:
     def test_connection(self):
         pass
 
+# RESTAURANT DATA
+
     def insert_biowaste(self, filepath="src/data/basic_mvp_data/Biowaste.csv"):
         """Function to insert biowaste data from csv file to database.
         Requires csv file which is modified to allow datapoints to be float: repl "," -> "."
@@ -222,12 +224,37 @@ class DatabaseRepository:
         """
         series = series.str.replace(" ", "0")
         return series.str.replace(",", ".").astype(float).round(2)
-
-    def get_id_from_db(self, table_name: str, names: pd.Series):
-        query = f"FROM {table_name} SELECT id"
-        ids = pd.read_sql_query(sql=query, con=self.database_connection)
-        return ids
     
+    def get_values_from_ids(self, table: str, value_name: str, id_list: list):
+        """Function to fetch data corresponding to its id from
+        the database. 
+
+        !!!Check the correct table name and value_name from schema!!!
+
+        Args:
+            table (str): name of table
+            value_name (str): name of value to fetch, e.g. "name"
+            id_list (list): list of ids, e.g. [1, 2, 3, 4, 5]
+
+        Returns:
+            list: values corresponding to the ids
+        """
+        # make sure ids are a list
+        if type(id_list) != list:
+            id_list = id_list.tolist()
+
+        placeholders = ', '.join(['%s'] * len(id_list))
+
+        query = f"SELECT id, {value_name} FROM {table} WHERE id IN ({placeholders})"
+
+        result = pd.read_sql_query(sql=query, con=self.database_connection, params=tuple(id_list))
+        
+        result_dict = dict(zip(result['id'], result[value_name]))
+        
+        ordered_values = [result_dict.get(id, None) for id in id_list]
+        
+        return ordered_values
+
     def get_sold_meals_data(self):
         return pd.read_sql_table("sold_lunches", con=self.database_connection)
 
@@ -248,11 +275,72 @@ class DatabaseRepository:
         df = pd.read_sql_table("restaurants", con=self.database_connection)
         df.set_index("id", inplace=True)
         return df
-    
+
     def get_dish_data(self):
         return pd.read_sql_table("dishes", con=self.database_connection)
 
+# RESULT DATA
 
+    def insert_nlp_encoding(self, data : pd.DataFrame):
+        """Function to insert NLP lemmas and encoding to database for later use.
+
+        Args:
+            data (pd.DataFrame): DataFrame with 'lemma' (str) as an index and 'encoding' (integer[])
+        """
+
+        try:
+            data.to_sql("nlp_encoding", con=self.database_connection, if_exists='replace')
+        except Exception as err:
+            print("Error in inserting NLP encoding into database:", err)
+
+    def get_nlp_encoding(self, lemma : str):
+        """Function to get an encoding for a lemma.
+
+            Args: lemma (str): a lemma used in NLP
+
+            Returns: result: result of SQL query as pd.DataFrame
+        """
+
+        sql = f"SELECT encoding FROM nlp_encoding WHERE lemma = '{lemma}'"
+
+        try:
+            result = pd.read_sql_query(sql, self.database_connection)
+            return result
+        except Exception as err:
+            print("Error in getting encoding from database:", err)
+    def fetch_latest_weekly_prediction(self):
+        """Fetch the latest prediction of sold meals
+        from the database.
+        """
+        pass
+
+    def fetch_latest_biowaste_prediction(self):
+        """Fetch the latest biowaste prediction
+        from the database."""
+        pass
+
+    def fetch_latest_occupancy_prediction(self):
+        """Fetch the latest prediction of occupancy
+        from the database."""
+        pass
+
+    def insert_weekly_prediction(self, prediction):
+        """Store a prediction of sold meals
+        to the database.
+        """
+        pass
+
+    def insert_biowaste_prediction(self, prediction):
+        """Store a prediction of created biowaste
+        to the database.
+        """
+        pass
+
+    def insert_occupancy_prediction(self, prediction):
+        """Store a prediction of occupancy
+        to the database.
+        """
+        pass
 
 
     

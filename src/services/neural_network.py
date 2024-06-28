@@ -3,6 +3,7 @@ from .ml_model import ML_Model, MODEL_PATH, SCALER_PATH
 from sklearn.neural_network import MLPRegressor
 from matplotlib import pyplot as plt
 import pickle
+import numpy as np
 
 
 class NeuralNetwork(ML_Model):
@@ -17,15 +18,19 @@ class NeuralNetwork(ML_Model):
                                   solver="adam",
                                   learning_rate="invscaling",
                                   learning_rate_init=0.1,
-                                  max_iter=1_00,
+                                  max_iter=10_000,
                                   early_stopping=False,
                                   shuffle=True)
 
     def _setup_data(self):
-
+        """Setup data for NN training
+        and testing.
+        """
         y = self.data["amount"].values
         X = self.data.drop("amount", axis="columns").values
 
+        # remove inner lists
+        X = np.array([data[0] for data in X])
 
         self._split_data(X, y)
 
@@ -36,7 +41,6 @@ class NeuralNetwork(ML_Model):
         Args:
             show_curve (bool, optional): If true shows loss curve. Defaults to False.
         """
-        print("learn function start")
         self.train_x = self.scaler.fit_transform(self.train_x)
 
         self.model.fit(X=self.train_x, y=self.train_y)

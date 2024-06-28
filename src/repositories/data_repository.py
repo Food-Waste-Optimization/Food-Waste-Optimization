@@ -11,7 +11,7 @@ class DataRepository:
         """
         Retrieve and process sold meals data from the database. 
 
-        - Take in the unprocessed data from the database:
+        - Take i_summary_n the unprocessed data from the database:
             sold meals data
 
         - Create a dataframe that has:
@@ -21,25 +21,36 @@ class DataRepository:
         Returns:
             pandas.DataFrame: The processed data.
         """
-        return None
+        print("fetching data...")
         data = db_repo.get_sold_meals_data()
+        
+        # Map ids to actual values
+        data["Dish"] = db_repo.get_values_from_ids("dishes", "name", data.pop("dish_id").values)
+        data["Restaurant"] = db_repo.get_values_from_ids("restaurants", "name", data.pop("restaurant_id").values)
 
-        if data:
-            data = self.process_menu_items(data["Dish"])
+        hourly_data = data.groupby([pd.Grouper(key="datetime",
+                                                freq="h"),
+                                                "Restaurant"]).agg({
+                                                "amount": "sum",
+                                                "Dish": lambda x: str(set(x))
+                                                }).reset_index()
 
-        # run language processing for menu items
-        # create weekday column
-        data["weekday"] = data.index.dayofweek
+        hourly_data.set_index("datetime", inplace=True)
 
-        print("data repo", data)
+        hourly_data["weekday"] = hourly_data.index.dayofweek
+
+
+        # for testing
+        #hourly_data = hourly_data.head(10)  
+
 
         # one hot encoding for menu items using nlp
-        data["Dish"] = language_processor.process_learn(data["Dish"])
-            
+        hourly_data["Dish"] = language_processor.process_learn(hourly_data["Dish"])
 
-        # group into restaurants, by date?
+        # for testing only use chemicum
+        hourly_data = hourly_data[hourly_data["Restaurant"] == "Chemicum"].drop(columns="Restaurant")
 
-        return data
+        return hourly_data
     
     def get_model_predict_data(self):
         pass
@@ -140,7 +151,38 @@ class DataRepository:
         data.pop("Kuitti kpl per Kuitti kpl (kg)")
 
         return data.to_dict()
+    
+    def save_latest_weekly_prediction(self, prediction):
+        """Save the latest prediction of sold meals
+        to be stored in a desired place. Currently in a database.
+        """
+        db_repo.insert_weekly_prediction(prediction)
 
+    def save_latest_biowaste_prediction(self, prediction):
+        """Save the latest biowaste prediction to be
+        stored in a desired place. Currently in a database."""
+        db_repo.insert_biowaste_prediction(prediction)
+
+    def save_latest_occupancy_prediction(self, prediction):
+        """Save the latest prediction of occupancy to be
+        stored in a desired place. Currently in a database."""
+        db_repo.insert_occupancy_prediction(prediction)
+
+    def get_latest_weekly_prediction(self):
+        """Fetch the latest prediction of sold meals
+        stored in a desired place. Currently in a database.
+        """
+        return db_repo.fetch_latest_weekly_prediction()
+
+    def get_latest_biowaste_prediction(self):
+        """Fetch the latest biowaste prediction
+        stored in a desired place. Currently in a database."""
+        return db_repo.fetch_latest_biowaste_prediction()
+
+    def get_latest_occupancy_prediction(self):
+        """Fetch the latest prediction of occupancy
+        stored in a desired place. Currently in a database."""
+        return db_repo.fetch_latest_occupancy_prediction()
 
     def test_db(self):
         if False:

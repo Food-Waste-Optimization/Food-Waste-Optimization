@@ -21,22 +21,7 @@ class ModelService:
     """
 
     def __init__(self):
-        # data is fetched every time init is run, this should not happen
-
-        # FIXME: HoangLe [Jun-25]: These 3 below are disabled for testing purpose. They are enabled by default
-        # self.data = data_repo.get_model_fit_data()
-        # self.predictor_data = data_repo.get_model_predict_data()
-        # self.model = NeuralNetwork(data=self.data, prediction_data=self.prediction_data)
-
-
-        # self.data = data_repo.get_model_fit_data()
-
-        # # predict data is not currently used
-        # self.predictor_data = data_repo.get_model_predict_data()
-
-        # self.model = NeuralNetwork(
-        #     data=self.data, prediction_data=self.prediction_data)
-
+        # data is fetched every time init is run, this should not happen\
         self.models = {}
         self._load_arima()
 
@@ -55,6 +40,9 @@ class ModelService:
             path_arima = path_root_trained_model / model_name / f"{restaurant}.pt"
             self.models[restaurant] = ARIMA(add_encoders=add_encoders).load(path_arima)
         
+        # self.data = data_repo.get_model_fit_data()
+        # self.model = NeuralNetwork(
+        #     data=self.data)
 
 
     def __predict(self, weekday: int, meal_plan: list):
@@ -81,27 +69,28 @@ class ModelService:
         R^2 value
         """
         try:
-            self.__load_model()
+            self.load_model()
         except NotFittedError as err:
             # no model to load
             print("Model could not be loaded, fitting instead:", err)
-            self.__fit_and_save()
+            self.fit_and_save()
         mse, mae, r2 = self.model.test()
 
         print(
             f"Mean squared error: {mse}\nMean absolute error: {mae}\nR^2: {r2}")
 
-    def __fit_and_save(self):
+    def fit_and_save(self):
         """Will fit the model and the save into a file.
         If unsuccessful, will give error.
         """
         try:
+            print("Fitting model")
             self.model.fit_and_save()
             print("Model fitted and saved")
         except Exception as err: # pylint: disable=W0718
             print("Model could not be fitted:", err)
 
-    def __load_model(self):
+    def load_model(self):
         """This function will load the model. First
         try to load a model and if no model is found,
         will give error.
@@ -112,25 +101,23 @@ class ModelService:
         except Exception as err: # pylint: disable=W0718
             print("Model could not be loaded:", err)
 
-    def __predict_waste_by_week(self):
+    def _predict_waste_by_week(self):
         """Predicts food waste for a week
         based on average food waste per customer
         and estimated amount of customers.
 
-        Should be modified. End result should be where
-        restaurant prediction is mapped to meal waste ratio prediction.
-
-        Returns:
-            float: food waste in kgs
+        Saves prediction to permanent storage
+        and should be fetched from there.
         """
-        waste = self.data_repo.get_avg_meals_waste_ratio()
+        waste = data_repo.get_avg_meals_waste_ratio()
         for waste_type in waste:
             for restaurant, weight in waste[waste_type].items():
                 waste[waste_type][restaurant] = list(
-                    map(lambda i: i*weight, self.__predict_next_week()))
-        return waste
+                    map(lambda i: i*weight, self._predict_next_week()))
+                
+        data_repo.save_latest_biowaste_prediction(waste)
 
-    def __predict_next_week(self, num_of_days: int, menu_plan: list):
+    def _predict_next_week(self, num_of_days: int, menu_plan: list):
         """Return a list of predictions
         for the next week from current date.
 
@@ -141,11 +128,14 @@ class ModelService:
         It should be a list of lists. The main list for each day
         and inner list for each dish.
 
-        Returns:
+        Data struct:
             list of int: list of predictions where index is offset from current day
+
+        Is saved to permanent storage.
         """
         day_offset = list(range(0, num_of_days))
-        return list(map(self.__predict, day_offset, menu_plan))
+        pred = list(map(self.__predict, day_offset, menu_plan))
+        data_repo.save_latest_weekly_prediction(pred)
 
     def predict_occupancy(self, num_of_days: int = 5):
         """Fetches the average occupancy by hour by day by restaurant
@@ -154,8 +144,7 @@ class ModelService:
         To get occupancy for a given restaurant and day, simply use
         dict[restaurant_name][day_as_int] = [avg occupancy for hours 0-23]
 
-        Returns:
-            dict: above given structure
+        This is expected to change into a more dynamic prediction.
         """
 
         # return self.data_repo.get_average_occupancy()
@@ -178,54 +167,43 @@ class ModelService:
         ret = predictions.to_dict('records')
 
         return ret
-        return self.data_repo.get_average_occupancy()
+        # return self.data_repo.get_average_occupancy()
     
     def get_latest_weekly_prediction(self):
         """Will use data_repository to fetch the latest
         prediction of sold meals stored in a desired place. Currently
         in a database. Is necessary to allow faster load
         times for the website.
-        """
-        pass
 
-    def get_latest_biowaste_prediction(self):
+        This should be used by the routes function.
+        """
+        return data_repo.get_latest_weekly_prediction()
+
+    def get_biowaste_prediction(self):
         """Will use data_repository to fetch the latest
         biowaste prediction stored in a desired place. Currently
         in a database. Is necessary to allow faster load
-        times for the website."""
-        pass
+        times for the website.
+        
+        This should be used by the routes function.
+        """
+        return data_repo.get_latest_biowaste_prediction()
 
-    def get_latest_occupancy_prediction(self):
+    def get_occupancy_prediction(self):
         """Will use data_repository to fetch the latest
         prediction of occupancy stored in a desired place. Currently
         in a database. Is necessary to allow faster load
-        times for the website."""
-        pass
+        times for the website.
+        
+        This should be used by the routes function.
+        """
+        return data_repo.get_latest_occupancy_prediction()
 
 
-
-# HOW TO USE
-
-
-def example_model():
-    """Creates an instance of ModelService for accessing the class methods."""
-    s = ModelService()
-
-    # After defining the class the model must be fitted using
-    s.load_model()
-
-    # s.predict(2)
 
 
 if __name__ == "__main__":
     model = ModelService()
-    model.__fit_and_save()
-    #model.load_model()
-    #print(model.predict_waste_by_week())
-    # print(model.predict_next_week(5))
-    # model.test_model()
-    # predicted_value = model.predict(2)
-    # print(predicted_value)
-    # print("Saving predicted value to file")
-    # with open('src/data/predicted.txt', "w") as file:
-    #    file.write(str(predicted_value))
+    model.fit_and_save()
+    model.test_model()
+    

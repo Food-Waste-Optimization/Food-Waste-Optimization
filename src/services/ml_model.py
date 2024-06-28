@@ -12,9 +12,8 @@ SCALER_PATH = "src/data/scaler_model.sav"
 
 
 class ML_Model:
-    def __init__(self, data, prediction_data):
+    def __init__(self, data=None):
         self.data = data
-        self.prediction_data = prediction_data
         self.train_x = None
         self.test_x = None
         self.train_y = None
@@ -31,13 +30,13 @@ class ML_Model:
     def _setup_data(self):
         return None
 
-    def _split_data(self, X, y, test_size=0.1):
+    def _split_data(self, X, y, test_size=0.2):
         """Split data into training and test data.
 
         Args:
             X (_type_): feature matrix
             y (_type_): correct value
-            test_size (float, optional): Percentage of test data. Defaults to 0.1.
+            test_size (float, optional): Percentage of test data. Defaults to 0.2.
         """
         self.train_x, self.test_x, self.train_y, self.test_y = train_test_split(
             X, y, test_size=test_size, random_state=None, shuffle=True, stratify=None)
