@@ -2,18 +2,17 @@
 from pathlib import Path
 
 import pandas as pd
-from darts.models import ARIMA
+from darts.models import ARIMA, LinearRegressionModel
 from loguru import logger
 from sklearn.exceptions import NotFittedError
 
 from ..repositories.data_repository import data_repo
-from .neural_network import NeuralNetwork
 
 # run with "poetry run python -m src.services.model_service"
 
-RESTAURANTS = ['600 Chemicum', '610 Physicum', '620 Exactum']
+RESTAURANTS = ['Chemicum', 'Physicum', 'Exactum']
+NUM_TIMESTAMP_PER_DAY = 9   # Since each day, the predictions' timestamp are 10 AM, 11 AM... 15 PM
 path_root_trained_model = Path("trained_models")
-timestep_per_day = 9    # [8 AM, 9 AM, ... 16 PM]
 
 class ModelService:
     """Class for handling the connection
@@ -22,13 +21,24 @@ class ModelService:
 
     def __init__(self):
         # data is fetched every time init is run, this should not happen\
-        self.models = {}
-        self._load_arima()
+        self.models = {
+            'receipt': {},
+            'biowaste': {},
+            'occupancy': {},
+            'meals': {},
+        }
+        self._load_receipt_forecaster()
+        self._load_biowaste_forecaster()
+        self._load_occupancy_forecaster()
 
-    def _load_arima(self):
-        logger.info("Load trained ARIMA models for 3 restaurants")
+        # self.data = data_repo.get_model_fit_data()
+        # self.model = NeuralNetwork(
+        #     data=self.data)
 
-        model_name = "ARIMA"
+    def _load_receipt_forecaster(self):
+        logger.info("Load trained receipt forecasting models for 3 restaurants")
+
+        model_name = "receipt"
         add_encoders = {
             'cyclic': {
                 'future': ['hour', 'dayofweek']
@@ -37,12 +47,39 @@ class ModelService:
         }
 
         for restaurant in RESTAURANTS:
-            path_arima = path_root_trained_model / model_name / f"{restaurant}.pt"
-            self.models[restaurant] = ARIMA(add_encoders=add_encoders).load(path_arima)
-        
-        # self.data = data_repo.get_model_fit_data()
-        # self.model = NeuralNetwork(
-        #     data=self.data)
+            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
+            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(path_model)
+                
+    def _load_biowaste_forecaster(self):
+        logger.info("Load trained biowaste forecasting models for 3 restaurants")
+
+        add_encoders = {
+            'cyclic': {
+                'past': ['dayofweek']
+            },
+            'datetime_attribute': {'past': ['dayofweek']},
+        }
+        model_name = "biowaste"
+
+        for restaurant in RESTAURANTS:
+            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
+            self.models[model_name][restaurant] = LinearRegressionModel(lags=5, lags_past_covariates=5, add_encoders=add_encoders).load(path_model)
+
+    def _load_occupancy_forecaster(self):
+        logger.info("Load trained occupancy forecasting models for 3 restaurants")
+
+        model_name = "occupancy"
+        add_encoders = {
+            'cyclic': {
+                'future': ['hour', 'dayofweek']
+            },
+            'datetime_attribute': {'future': ['hour', 'dayofweek']},
+        }
+
+        for restaurant in RESTAURANTS:
+            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
+            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(path_model)
+
 
 
     def __predict(self, weekday: int, meal_plan: list):
@@ -56,7 +93,7 @@ class ModelService:
         """
         try:
             return self.model.predict(weekday=weekday, dishes=meal_plan)
-        except NotFittedError as err:
+        except NotFittedError:
             print("You must load or fit model first")
 
     def test_model(self):
@@ -136,38 +173,6 @@ class ModelService:
         day_offset = list(range(0, num_of_days))
         pred = list(map(self.__predict, day_offset, menu_plan))
         data_repo.save_latest_weekly_prediction(pred)
-
-    def predict_occupancy(self, num_of_days: int = 5):
-        """Fetches the average occupancy by hour by day by restaurant
-        for all restaurants as a dictionary.
-
-        To get occupancy for a given restaurant and day, simply use
-        dict[restaurant_name][day_as_int] = [avg occupancy for hours 0-23]
-
-        This is expected to change into a more dynamic prediction.
-        """
-
-        # return self.data_repo.get_average_occupancy()
-        
-        predictions = pd.DataFrame()
-
-        # Forecast the future
-        for restaurant in RESTAURANTS:
-            pred = self.models[restaurant].predict(num_of_days * timestep_per_day)
-
-            if len(predictions) == 0:
-                predictions['datetime'] = pred.time_index
-
-            predictions.loc[:, restaurant] = pred.values()
-
-        # Post-process
-        predictions['datetime'] = predictions['datetime'].dt.strftime(r"%Y-%m-%d %H:%M:%S")
-
-        # Return
-        ret = predictions.to_dict('records')
-
-        return ret
-        # return self.data_repo.get_average_occupancy()
     
     def get_latest_weekly_prediction(self):
         """Will use data_repository to fetch the latest
@@ -198,8 +203,100 @@ class ModelService:
         This should be used by the routes function.
         """
         return data_repo.get_latest_occupancy_prediction()
+    
 
 
+
+    def forecast_receipt(self, num_of_days: int = 5) -> list:
+        """Forecast the number of receipts `num_of_days` ahead
+
+        Args:
+            num_of_days (int, optional): The number of days for forecasting. Defaults to 5.
+
+        Returns:
+            list: forecasted receipt quantity per date per restaurant
+        """
+        
+        predictions = pd.DataFrame()
+
+        # Forecast the future
+        for restaurant in RESTAURANTS:
+            pred = self.models['receipt'][restaurant].predict(num_of_days * NUM_TIMESTAMP_PER_DAY)
+
+            if len(predictions) == 0:
+                predictions['datetime'] = pred.time_index
+
+            predictions.loc[:, restaurant] = pred.values()
+
+        # Post-process
+        predictions['datetime'] = predictions['datetime'].dt.strftime(r"%Y-%m-%d %H:%M:%S")
+
+        # Return
+        ret = predictions.to_dict('records')
+
+        return ret
+    
+    def forecast_biowaste(self, num_of_days: int = 5):        
+        predictions = {}
+
+        # Forecast the future
+        for restaurant in RESTAURANTS:
+            pred = self.models['biowaste'][restaurant].predict(num_of_days)
+
+            df_pred = pred.pd_dataframe().reset_index()
+            df_pred['date'] = df_pred['date'].dt.strftime(r"%Y-%m-%d")
+
+            for row in df_pred.itertuples():
+                if row.date not in predictions:
+                    predictions[row.date] = {
+                        'date': row.date
+                    }
+
+                predictions[row.date] = {
+                    **predictions[row.date],
+                    restaurant: {
+                        'amnt_waste_customer': row.amnt_waste_customer,
+                        'amnt_waste_coffee': row.amnt_waste_coffee,
+                        'amnt_waste_kitchen': row.amnt_waste_kitchen,
+                        'amnt_waste_hall': row.amnt_waste_hall,
+                    }
+                }
+
+        # Return
+        ret = list(predictions.values())
+
+        return ret
+
+    def forecast_occupancy(self, num_of_days: int = 5) -> list:
+        """Forecast the number of occupancy from SuperSight data
+
+        Args:
+            num_of_days (int, optional): _description_. Defaults to 5.
+        """
+        num_timesteps = NUM_TIMESTAMP_PER_DAY * num_of_days
+
+        predictions = {}
+        for restaurant in RESTAURANTS:
+            # Forecast
+            pred = self.models['occupancy'][restaurant].predict(num_timesteps)
+
+            # Post-process forecasted data
+            df_pred = pred.pd_dataframe().reset_index()
+            df_pred['datetime'] = df_pred['datetime'].dt.strftime(r"%Y-%m-%d %H:%M:%S")
+
+            for row in df_pred.itertuples():
+                if row.datetime not in predictions:
+                    predictions[row.datetime] = {'datetime': row.datetime}
+
+                predictions[row.datetime][restaurant] = row.num_customer_in
+
+        ret = list(predictions.values())
+
+        return ret
+
+    def forecast_sold_meals(self, num_of_days: int = 5):
+        # TODO: HoangLe [Jul-04]: Implement this
+        pass
 
 
 if __name__ == "__main__":

@@ -17,8 +17,8 @@ paths:
     get:
       tags:
         - Prediction
-      summary: Get occupancy forecast by days
-      description: Get occupancy forecast by days
+      summary: Get forecasted occupancy
+      description: Get forecasted occupancy (number of people) in different locations
       parameters:
         - name: days
           in: query
@@ -34,9 +34,90 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Prediction"
+                  $ref: "#/components/schemas/ReceiptPrediction"
         "400":
           description: Invalid query argument
+  /data/biowaste:
+    get:
+      tags:
+        - Prediction
+      summary: Get predicted waste amount
+      description: Get predicted waste amount (in kilograms) of different waste types per day
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to forecast
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BiowastePrediction"
+        "400":
+          description: Invalid query argument
+  /data/receipts:
+    get:
+      tags:
+        - Prediction
+      summary: Get forecasted receipt quantity per restaurant per day
+      description: Get forecasted receipt quantity per restaurant per day
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to forecast
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BiowastePrediction"
+        "400":
+          description: Invalid query argument
+  /data/meals:
+    get:
+      tags:
+        - Prediction
+      summary: Get meal forecast per restaurant per day
+      description: Get meal forecast by day by restaurant
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to forecast
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BiowastePrediction"
+        "400":
+          description: Invalid query argument
+
+  /data/menus:
+    get:
+      tags:
+        - Data
+      summary: Get menu
+      responses:
+        "200":
+          description: successful operation
 
   /fwowebserver:
     get:
@@ -65,41 +146,86 @@ paths:
         "200":
           description: successful operation
 
-  /data/biowaste:
-    get:
-      tags:
-        - Data
-      summary: Get predicted waste
-      responses:
-        "200":
-          description: successful operation
-
-  /data/menus:
-    get:
-      tags:
-        - Data
-      summary: Get menu
-      responses:
-        "200":
-          description: successful operation
-
 components:
   schemas:
-    Prediction:
+    ReceiptPrediction:
       type: object
       properties:
-        600 Chemicum:
+        Chemicum:
           type: number
           format: float
           example: 2.3504778
-        610 Physicum:
+        Physicum:
           type: number
           format: float
           example: 7.873081
-        620 Exactum:
+        Exactum:
           type: number
           format: float
           example: 2.3242
         datetime:
           type: string
           example: "2024-05-14 09:00:00"
+    BiowastePrediction:
+      type: object
+      properties:
+        Chemicum:
+          type: object
+          properties:
+            amnt_waste_customer:
+              type: number
+              format: float
+              example: 7.87
+            amnt_waste_coffee:
+              type: number
+              format: float
+              example: 6.74
+            amnt_waste_kitchen:
+              type: number
+              format: float
+              example: 13.12
+            amnt_waste_hall:
+              type: number
+              format: float
+              example: 12.76
+        Physicum:
+          type: object
+          properties:
+            amnt_waste_customer:
+              type: number
+              format: float
+              example: -0.0909
+            amnt_waste_coffee:
+              type: number
+              format: float
+              example: 11.2897
+            amnt_waste_kitchen:
+              type: number
+              format: float
+              example: 12.328253081
+            amnt_waste_hall:
+              type: number
+              format: float
+              example: 0.177681
+        Exactum:
+          type: object
+          properties:
+            amnt_waste_customer:
+              type: number
+              format: float
+              example: 5.210
+            amnt_waste_coffee:
+              type: number
+              format: float
+              example: 1.409
+            amnt_waste_kitchen:
+              type: number
+              format: float
+              example: 8.273
+            amnt_waste_hall:
+              type: number
+              format: float
+              example: -1.39208
+        date:
+          type: string
+          example: "2024-05-09"
