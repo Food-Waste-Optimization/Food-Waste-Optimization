@@ -21,7 +21,7 @@ spacy = "^3.7.5"
 flask-sqlalchemy = "^3.1.1"
 psycopg2-binary = "^2.9.9"
 loguru = "^0.7.2"
-u8darts = "^0.30.0"
+u8darts = {extras = ["all"], version = "^0.30.0"}
 
 
 

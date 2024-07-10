@@ -25,11 +25,12 @@ class ModelService:
             'receipt': {},
             'biowaste': {},
             'occupancy': {},
-            'meals': {},
+            'meal': {},
         }
         self._load_receipt_forecaster()
         self._load_biowaste_forecaster()
         self._load_occupancy_forecaster()
+        self._load_meal_forecaster()
 
         # self.data = data_repo.get_model_fit_data()
         # self.model = NeuralNetwork(
@@ -80,7 +81,28 @@ class ModelService:
             path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
             self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(path_model)
 
+    def _load_meal_forecaster(self):
+        logger.info("Load trained meal forecasting models for 3 restaurants")
 
+        add_encoders = {
+            'cyclic': {
+                'past': ['dayofweek']
+            },
+            'datetime_attribute': {'past': ['dayofweek']},
+        }
+        model_name = "meal"
+
+        for restaurant in RESTAURANTS:
+            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
+            self.models[model_name][restaurant] = LinearRegressionModel(lags=4, lags_past_covariates=5, add_encoders=add_encoders).load(path_model)
+
+    def _post_process(self, prediction):
+        if prediction <= 0:
+            prediction = 0.
+
+        prediction = round(prediction, 2)
+
+        return prediction
 
     def __predict(self, weekday: int, meal_plan: list):
         """This function will predict sold meals
@@ -226,7 +248,7 @@ class ModelService:
             if len(predictions) == 0:
                 predictions['datetime'] = pred.time_index
 
-            predictions.loc[:, restaurant] = pred.values()
+            predictions.loc[:, restaurant] = [self._post_process(x) for x in pred.values().squeeze().tolist()]
 
         # Post-process
         predictions['datetime'] = predictions['datetime'].dt.strftime(r"%Y-%m-%d %H:%M:%S")
@@ -255,10 +277,10 @@ class ModelService:
                 predictions[row.date] = {
                     **predictions[row.date],
                     restaurant: {
-                        'amnt_waste_customer': row.amnt_waste_customer,
-                        'amnt_waste_coffee': row.amnt_waste_coffee,
-                        'amnt_waste_kitchen': row.amnt_waste_kitchen,
-                        'amnt_waste_hall': row.amnt_waste_hall,
+                        'amnt_waste_customer': self._post_process(row.amnt_waste_customer),
+                        'amnt_waste_coffee': self._post_process(row.amnt_waste_coffee),
+                        'amnt_waste_kitchen': self._post_process(row.amnt_waste_kitchen),
+                        'amnt_waste_hall': self._post_process(row.amnt_waste_hall),
                     }
                 }
 
@@ -288,15 +310,44 @@ class ModelService:
                 if row.datetime not in predictions:
                     predictions[row.datetime] = {'datetime': row.datetime}
 
-                predictions[row.datetime][restaurant] = row.num_customer_in
+                predictions[row.datetime][restaurant] = self._post_process(row.num_customer_in)
 
         ret = list(predictions.values())
 
         return ret
 
     def forecast_sold_meals(self, num_of_days: int = 5):
-        # TODO: HoangLe [Jul-04]: Implement this
-        pass
+        predictions = {}
+
+        # Forecast the future
+        for restaurant in RESTAURANTS:
+            pred = self.models['meal'][restaurant].predict(num_of_days)
+
+            df_pred = pred.pd_dataframe().reset_index()
+            df_pred['date'] = df_pred['date'].dt.strftime(r"%Y-%m-%d")
+
+            for row in df_pred.itertuples():
+                if row.date not in predictions:
+                    predictions[row.date] = {
+                        'date': row.date
+                    }
+
+                predictions[row.date] = {
+                    **predictions[row.date],
+                    restaurant: {
+                        'num_fish': self._post_process(row.num_fish),
+                        'num_chicken': self._post_process(row.num_chicken),
+                        'num_vegetable': self._post_process(row.num_vegetable),
+                        'num_meat': self._post_process(row.num_meat),
+                        'num_NotMapped': self._post_process(row.num_NotMapped),
+                        'num_vegan': self._post_process(row.num_vegan),
+                    }
+                }
+
+        # Return
+        ret = list(predictions.values())
+
+        return ret
 
 
 if __name__ == "__main__":

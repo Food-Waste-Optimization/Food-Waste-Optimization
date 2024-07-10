@@ -13,10 +13,10 @@ paths:
       responses:
         "200":
           description: successful operation
-  /data/occupancy:
+  /forecast/occupancy:
     get:
       tags:
-        - Prediction
+        - Forecast
       summary: Get forecasted occupancy
       description: Get forecasted occupancy (number of people) in different locations
       parameters:
@@ -37,10 +37,10 @@ paths:
                   $ref: "#/components/schemas/ReceiptPrediction"
         "400":
           description: Invalid query argument
-  /data/biowaste:
+  /forecast/biowaste:
     get:
       tags:
-        - Prediction
+        - Forecast
       summary: Get predicted waste amount
       description: Get predicted waste amount (in kilograms) of different waste types per day
       parameters:
@@ -61,10 +61,10 @@ paths:
                   $ref: "#/components/schemas/BiowastePrediction"
         "400":
           description: Invalid query argument
-  /data/receipts:
+  /forecast/receipts:
     get:
       tags:
-        - Prediction
+        - Forecast
       summary: Get forecasted receipt quantity per restaurant per day
       description: Get forecasted receipt quantity per restaurant per day
       parameters:
@@ -82,13 +82,13 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/BiowastePrediction"
+                  $ref: "#/components/schemas/ReceiptPrediction"
         "400":
           description: Invalid query argument
   /data/meals:
     get:
       tags:
-        - Prediction
+        - Forecast
       summary: Get meal forecast per restaurant per day
       description: Get meal forecast by day by restaurant
       parameters:
@@ -106,7 +106,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/BiowastePrediction"
+                  $ref: "#/components/schemas/MealPrediction"
         "400":
           description: Invalid query argument
 
@@ -226,6 +226,93 @@ components:
               type: number
               format: float
               example: -1.39208
+        date:
+          type: string
+          example: "2024-05-09"
+    MealPrediction:
+      type: object
+      properties:
+        Chemicum:
+          type: object
+          properties:
+            num_NotMapped:
+              type: number
+              format: float
+              example: 7.87
+            num_chicken:
+              type: number
+              format: float
+              example: 6.74
+            num_fish:
+              type: number
+              format: float
+              example: 13.12
+            num_meat:
+              type: number
+              format: float
+              example: 12.76
+            num_vegan:
+              type: number
+              format: float
+              example: 12.76
+            num_vegetable:
+              type: number
+              format: float
+              example: 12.76
+        Physicum:
+          type: object
+          properties:
+            num_NotMapped:
+              type: number
+              format: float
+              example: 7.87
+            num_chicken:
+              type: number
+              format: float
+              example: 6.74
+            num_fish:
+              type: number
+              format: float
+              example: 13.12
+            num_meat:
+              type: number
+              format: float
+              example: 12.76
+            num_vegan:
+              type: number
+              format: float
+              example: 12.76
+            num_vegetable:
+              type: number
+              format: float
+              example: 12.76
+        Exactum:
+          type: object
+          properties:
+            num_NotMapped:
+              type: number
+              format: float
+              example: 7.87
+            num_chicken:
+              type: number
+              format: float
+              example: 6.74
+            num_fish:
+              type: number
+              format: float
+              example: 13.12
+            num_meat:
+              type: number
+              format: float
+              example: 12.76
+            num_vegan:
+              type: number
+              format: float
+              example: 12.76
+            num_vegetable:
+              type: number
+              format: float
+              example: 12.76
         date:
           type: string
           example: "2024-05-09"
