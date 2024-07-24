@@ -397,3 +397,43 @@ def forecast_meal():
         resp = make_response(jsonify(data), 200)
     
     return resp
+
+
+@app.route('/forecast/biowaste_from_meals')
+def biowaste_from_meals():
+    resp = None
+
+    # Request checking
+    restaurant = request.args.get('restaurant')
+    if restaurant is None or not isinstance(restaurant, str) or restaurant not in ['Chemicum', 'Physicum', 'Exactum']:
+        resp = make_response("Invalid query argument: 'restaurant'", 400)
+
+    num_meals = {
+        'num_fish': 0,
+        'num_chicken': 0,
+        'num_vegetarian': 0,
+        'num_meat': 0,
+        'num_vegan': 0,
+    }
+    for meal_type in num_meals.keys():
+        num = request.args.get(meal_type)
+        if meal_type is None:
+            resp = make_response(f"Invalid query argument: '{meal_type}'", 400)
+
+            break
+
+        num_meals[meal_type] = float(num)
+        
+
+    if resp is None:
+        try:
+            buf = model.forecast_biowaste_with_meal(restaurant=restaurant, **num_meals)
+
+            resp = make_response(buf, 200)
+            resp.headers.set('Content-Type', 'image/png')
+        except Exception as e:
+            # tb = traceback.format_exc()
+
+            resp = make_response(f"Error: {e}", 500)
+    
+    return resp

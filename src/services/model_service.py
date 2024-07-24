@@ -1,8 +1,13 @@
 """Creates ModelService class that allows requests to AI models."""
+import io
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
+import onnxruntime as rt
 import pandas as pd
-from darts.models import ARIMA, LinearRegressionModel
+import seaborn as sns
+from darts.models import ARIMA, LinearRegressionModel, LightGBMModel
 from loguru import logger
 from sklearn.exceptions import NotFittedError
 
@@ -26,11 +31,20 @@ class ModelService:
             'biowaste': {},
             'occupancy': {},
             'meal': {},
+
+            'receipt_per_day': None,
+            "biowaste_from_meal": {},
         }
         self._load_receipt_forecaster()
         self._load_biowaste_forecaster()
         self._load_occupancy_forecaster()
         self._load_meal_forecaster()
+
+        self._load_receipt_byday_forecaster()
+        self._load_biowaste_from_meal_forecaster()
+
+        plt.style.use('seaborn-v0_8')
+        plt.rcParams.update({'font.size': 8})
 
         # self.data = data_repo.get_model_fit_data()
         # self.model = NeuralNetwork(
@@ -95,6 +109,34 @@ class ModelService:
         for restaurant in RESTAURANTS:
             path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
             self.models[model_name][restaurant] = LinearRegressionModel(lags=4, lags_past_covariates=5, add_encoders=add_encoders).load(path_model)
+
+    def _load_receipt_byday_forecaster(self):
+        logger.info("Load trained receipt forecasting model by day")
+
+        add_encoders = {
+            'cyclic': {
+                'future': ['dayofweek', 'day', 'month']
+            },
+            'datetime_attribute': {'future': ['dayofweek', 'day', 'month']},
+        }
+        path_model = Path("trained_models/receipt/Jul_23_LightBGM.pt")
+
+        self.models['receipt_per_day'] = LightGBMModel(
+            lags=7,
+            lags_future_covariates=[0],
+            add_encoders=add_encoders,
+            output_chunk_length=1,
+            verbose=-1
+        ).load(path_model)
+
+    def _load_biowaste_from_meal_forecaster(self):
+        logger.info("Load trained biowaste from meal forecasting models by restaurant")
+
+        for restaurant in RESTAURANTS:
+            path_model = Path(f"trained_models/biowaste/Jul24_Lasso_{restaurant}.onnx")
+
+            self.models['biowaste_from_meal'][restaurant] = rt.InferenceSession(path_model, providers=["CPUExecutionProvider"])
+
 
     def _post_process(self, prediction):
         if prediction <= 0:
@@ -349,6 +391,68 @@ class ModelService:
 
         return ret
 
+    def forecast_biowaste_with_meal(
+        self,
+        restaurant: str,
+        num_fish: float,
+        num_chicken: float,
+        num_vegetarian: float,
+        num_meat: float,
+        num_vegan: float
+    ):
+        # Predict no. receipts next day
+        out = self.models['receipt_per_day'].predict(1)
+        date = out.time_index[0].strftime('%b %d, %Y')
+        n_rpts = out[f"{restaurant}_rcpts"] .data_array().to_numpy().squeeze().astype(np.int32)
+
+        # Predict waste
+        X_predict = pd.DataFrame({
+            'fish': [num_fish],
+            'chicken': [num_chicken],
+            'vegetarian': [num_vegetarian],
+            'meat': [num_meat],
+            'vegan': [num_vegan]
+        })
+
+        sess = self.models['biowaste_from_meal'][restaurant]
+        input_name = sess.get_inputs()[0].name
+        label_name = sess.get_outputs()[0].name
+        pred_onx = sess.run([label_name], {input_name: X_predict.to_numpy()})[0]
+
+        # Calculate the waste per customer
+        amnt_waste_per_customer = pred_onx.sum() * 1000 / n_rpts
+        
+        # Plot
+        fig = plt.figure(figsize=(10, 8))
+        fig.suptitle(f"Forecast in date: {date}", fontweight='bold', fontsize=14)
+
+        ax = fig.add_subplot(221)
+        sns.barplot(X_predict, ax=ax)
+        for i, val in enumerate(X_predict.to_numpy().squeeze().astype(np.int32)):
+            plt.text(i, val+2, val, ha = 'center', fontsize=11)
+        ax.set_title("Input: number of meals per type", fontweight='bold')
+
+        ax = fig.add_subplot(222)
+        sns.barplot(x=['Customer', 'Kitchen'], y=pred_onx.squeeze(), ax=ax)
+        for i, val in enumerate(pred_onx.squeeze()):
+            plt.text(i, val+0.2, f"{val:.2f}", ha = 'center', fontsize=11)
+        ax.set_title("Predicted amount of waste per type", fontweight='bold')
+
+        ax = fig.add_subplot(223)
+        sns.barplot(x=['Num. receipts'], y=[641], ax=ax)
+        ax.set_title("Forecasted number of receipts (POS)", fontweight='bold')
+
+        ax = fig.add_subplot(224)
+        sns.barplot(x=['Amount'], y=[amnt_waste_per_customer], ax=ax)
+        ax.axhline(y = 40, color = 'r', linestyle = '-.')
+        ax.set_title("Amnt. waste per customer (in gram)", fontweight='bold')
+
+        # Export image
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+
+        return buf.read()
 
 if __name__ == "__main__":
     model = ModelService()
