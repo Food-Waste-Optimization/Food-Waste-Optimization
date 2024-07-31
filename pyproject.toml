@@ -24,6 +24,7 @@ loguru = "^0.7.2"
 u8darts = {extras = ["all"], version = "^0.30.0"}
 skl2onnx = "^1.17.0"
 onnxruntime = "^1.18.1"
+seaborn = "^0.13.2"
 
 
 
