@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from .db_repository import db_repo
-from ..services.language_processor import language_processor
+# from ..services.language_processor import language_processor
 
 
 class DataRepository:
@@ -45,7 +45,7 @@ class DataRepository:
 
 
         # one hot encoding for menu items using nlp
-        hourly_data["Dish"] = language_processor.process_learn(hourly_data["Dish"])
+        # hourly_data["Dish"] = language_processor.process_learn(hourly_data["Dish"])
 
         # for testing only use chemicum
         hourly_data = hourly_data[hourly_data["Restaurant"] == "Chemicum"].drop(columns="Restaurant")

@@ -5,7 +5,7 @@ import spacy_stanza
 import stanza
 import pandas as pd
 import numpy as np
-from ..repositories.db_repository import DatabaseRepository
+# from ..repositories.db_repository import DatabaseRepository
 
 class LanguageProcessor:
     """Class to process menu items
@@ -52,7 +52,7 @@ class LanguageProcessor:
             list: Corresponding list of one-hot-encodings (lists of ones and zeroes)
         """
 
-        db = DatabaseRepository()
+        # db = DatabaseRepository()
         lemmas = self.get_lemmas(input_list)
 
         one_hot_encoded_list = []
@@ -78,7 +78,7 @@ class LanguageProcessor:
         encoding_df = pd.DataFrame(encoding_data)
         encoding_df.set_index('lemma', inplace=True)
         print(encoding_df.head(10))
-        db.insert_nlp_encoding(encoding_df)
+        # db.insert_nlp_encoding(encoding_df)
 
         return one_hot_encoded_list
 
@@ -111,7 +111,7 @@ class LanguageProcessor:
         return one_hot_encoded_list
 
 
-language_processor = LanguageProcessor()
+# language_processor = LanguageProcessor()
 
 if __name__ == "__main__":
     lm = LanguageProcessor()
