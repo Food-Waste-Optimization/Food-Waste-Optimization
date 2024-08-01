@@ -7,7 +7,7 @@ import numpy as np
 import onnxruntime as rt
 import pandas as pd
 import seaborn as sns
-from darts.models import ARIMA, LinearRegressionModel, LightGBMModel
+from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
 from sklearn.exceptions import NotFittedError
 
@@ -398,12 +398,13 @@ class ModelService:
         num_chicken: float,
         num_vegetarian: float,
         num_meat: float,
-        num_vegan: float
+        num_vegan: float,
+        return_type: str,
     ):
         # Predict no. receipts next day
         out = self.models['receipt_per_day'].predict(1)
         date = out.time_index[0].strftime('%b %d, %Y')
-        n_rpts = out[f"{restaurant}_rcpts"] .data_array().to_numpy().squeeze().astype(np.int32)
+        n_rpts = out[f"{restaurant}_rcpts"] .data_array().to_numpy().squeeze().astype(np.int32).item()
 
         # Predict waste
         X_predict = pd.DataFrame({
@@ -422,37 +423,51 @@ class ModelService:
         # Calculate the waste per customer
         amnt_waste_per_customer = pred_onx.sum() * 1000 / n_rpts
         
-        # Plot
-        fig = plt.figure(figsize=(10, 8))
-        fig.suptitle(f"Forecast in date: {date}", fontweight='bold', fontsize=14)
+        ret = None
+        if return_type == "image":
+            # Plot
+            fig = plt.figure(figsize=(10, 8))
+            fig.suptitle(f"Forecast in date: {date}", fontweight='bold', fontsize=14)
 
-        ax = fig.add_subplot(221)
-        sns.barplot(X_predict, ax=ax)
-        for i, val in enumerate(X_predict.to_numpy().squeeze().astype(np.int32)):
-            plt.text(i, val+2, val, ha = 'center', fontsize=11)
-        ax.set_title("Input: number of meals per type", fontweight='bold')
+            ax = fig.add_subplot(221)
+            sns.barplot(X_predict, ax=ax)
+            for i, val in enumerate(X_predict.to_numpy().squeeze().astype(np.int32)):
+                plt.text(i, val+2, val, ha = 'center', fontsize=11)
+            ax.set_title("Input: number of meals per type", fontweight='bold')
 
-        ax = fig.add_subplot(222)
-        sns.barplot(x=['Customer', 'Kitchen'], y=pred_onx.squeeze(), ax=ax)
-        for i, val in enumerate(pred_onx.squeeze()):
-            plt.text(i, val+0.2, f"{val:.2f}", ha = 'center', fontsize=11)
-        ax.set_title("Predicted amount of waste per type", fontweight='bold')
+            ax = fig.add_subplot(222)
+            sns.barplot(x=['Customer', 'Kitchen'], y=pred_onx.squeeze(), ax=ax)
+            for i, val in enumerate(pred_onx.squeeze()):
+                plt.text(i, val+0.2, f"{val:.2f}", ha = 'center', fontsize=11)
+            ax.set_title("Predicted amount of waste per type", fontweight='bold')
 
-        ax = fig.add_subplot(223)
-        sns.barplot(x=['Num. receipts'], y=[641], ax=ax)
-        ax.set_title("Forecasted number of receipts (POS)", fontweight='bold')
+            ax = fig.add_subplot(223)
+            sns.barplot(x=['Num. receipts'], y=[n_rpts], ax=ax)
+            ax.set_title("Forecasted number of receipts (POS)", fontweight='bold')
 
-        ax = fig.add_subplot(224)
-        sns.barplot(x=['Amount'], y=[amnt_waste_per_customer], ax=ax)
-        ax.axhline(y = 40, color = 'r', linestyle = '-.')
-        ax.set_title("Amnt. waste per customer (in gram)", fontweight='bold')
+            ax = fig.add_subplot(224)
+            sns.barplot(x=['Amount'], y=[amnt_waste_per_customer], ax=ax)
+            ax.axhline(y = 40, color = 'r', linestyle = '-.')
+            ax.set_title("Amnt. waste per customer (in gram)", fontweight='bold')
 
-        # Export image
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', bbox_inches='tight')
-        buf.seek(0)
+            # Export image
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png', bbox_inches='tight')
+            buf.seek(0)
 
-        return buf.read()
+            ret = buf.read()
+        elif return_type == "numeric":
+            ret = {
+                'date': out.time_index[0].strftime('%Y-%m-%d'),
+                'predicted_waste_customer': pred_onx.squeeze()[0].item(),
+                'predicted_waste_kitchen': pred_onx.squeeze()[1].item(),
+                'predicted_num_receipts': n_rpts,
+                'predicted_waste_per_customer': amnt_waste_per_customer.item()
+            }
+        else:
+            raise NotImplementedError
+
+        return ret
 
 if __name__ == "__main__":
     model = ModelService()

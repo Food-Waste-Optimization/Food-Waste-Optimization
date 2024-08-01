@@ -1,3 +1,5 @@
+import traceback
+
 import pandas as pd
 from flask import jsonify, make_response, render_template, request
 
@@ -404,9 +406,13 @@ def biowaste_from_meals():
     resp = None
 
     # Request checking
-    restaurant = request.args.get('restaurant')
+    restaurant = request.args.get('restaurant', None)
     if restaurant is None or not isinstance(restaurant, str) or restaurant not in ['Chemicum', 'Physicum', 'Exactum']:
         resp = make_response("Invalid query argument: 'restaurant'", 400)
+    
+    return_type = request.args.get('return_type', None)
+    if return_type is None or not isinstance(return_type, str) or return_type not in ['image', 'numeric']:
+        resp = make_response("Invalid query argument: 'return_type'", 400)
 
     num_meals = {
         'num_fish': 0,
@@ -427,12 +433,18 @@ def biowaste_from_meals():
 
     if resp is None:
         try:
-            buf = model.forecast_biowaste_with_meal(restaurant=restaurant, **num_meals)
+            assert restaurant
+            assert return_type
+            buf = model.forecast_biowaste_with_meal(restaurant=restaurant, **num_meals, return_type=return_type)
 
             resp = make_response(buf, 200)
-            resp.headers.set('Content-Type', 'image/png')
+            if isinstance(buf, dict):
+                resp.headers.set('Content-Type', 'application/json')
+            else:
+                resp.headers.set('Content-Type', 'image/png')
         except Exception as e:
-            # tb = traceback.format_exc()
+            tb = traceback.format_exc()
+            print(tb)
 
             resp = make_response(f"Error: {e}", 500)
     

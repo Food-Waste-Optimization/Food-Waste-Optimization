@@ -61,6 +61,72 @@ paths:
                   $ref: "#/components/schemas/BiowastePrediction"
         "400":
           description: Invalid query argument
+  /forecast/biowaste_from_meals:
+    get:
+      tags:
+        - Forecast
+      summary: Get predicted waste amount
+      description: Get predicted waste amount (in kilograms) of different waste types from number of sold meals
+      parameters:
+        - name: restaurant
+          in: query
+          description: Restaurant
+          required: true
+          schema:
+            type: string
+            enum: [Chemicum, Physicum, Exactum]
+        - name: num_fish
+          in: query
+          description: Number of fish meals
+          required: true
+          schema:
+            type: integer
+        - name: num_chicken
+          in: query
+          description: Number of chicken meals
+          required: true
+          schema:
+            type: integer
+        - name: num_vegetarian
+          in: query
+          description: Number of vegetarian meals
+          required: true
+          schema:
+            type: integer
+        - name: num_meat
+          in: query
+          description: Number of meat meals
+          required: true
+          schema:
+            type: integer
+        - name: num_vegan
+          in: query
+          description: Number of vegan meals
+          required: true
+          schema:
+            type: integer
+        - name: return_type
+          in: query
+          description: Return type
+          required: true
+          schema:
+            type: string
+            enum: [image, numeric]
+      responses:
+        "200":
+          description: successful operation
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BiowasteFromMealPredictionJSON"
+        "400":
+          description: Invalid query argument
   /forecast/receipts:
     get:
       tags:
@@ -166,6 +232,29 @@ components:
         datetime:
           type: string
           example: "2024-05-14 09:00:00"
+    BiowasteFromMealPredictionJSON:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2024-05-09"
+        predicted_num_receipts:
+          type: number
+          format: integer
+          example: 641
+        predicted_waste_customer:
+          type: number
+          format: float
+          example: 15.926
+        predicted_waste_kitchen:
+          type: number
+          format: float
+          example: 13.172
+        predicted_waste_per_customer:
+          type: number
+          format: float
+          example: 45.39
     BiowastePrediction:
       type: object
       properties:
