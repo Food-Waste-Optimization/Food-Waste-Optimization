@@ -1,12 +1,11 @@
 """Create a LanguageProcessor class with tools for handling text (menu items).
     """
-# Run with python -m src.services.language_processor 
-import spacy
+# Run with python -m src.services.language_processor from root dir
 import spacy_stanza
 import stanza
 import pandas as pd
 import numpy as np
-from sklearn.feature_extraction.text import CountVectorizer
+# from ..repositories.db_repository import DatabaseRepository
 
 class LanguageProcessor:
     """Class to process menu items
@@ -19,68 +18,104 @@ class LanguageProcessor:
         self._load_nlp()
 
     def _load_nlp(self):
+        """Load language model.
+        """
         stanza.download(lang="fi")
-        self.nlp = spacy_stanza.load_pipeline(name="fi")
-
-    def process(self, item):
-        return self.nlp(item)
-
-    def is_date(self, row):
-        try:
-            pd.to_datetime(row)
-            return True
-        except:
-            return False
-
-    def read_menu(self):
-        path = 'src/data/basic_mvp_data/kumpula_menu.xlsx'
-        menu_data = pd.read_excel(path)
-        menu_data = menu_data.drop([0, 1], axis=0)
-        menu_data = menu_data.drop(columns=menu_data.columns[0:-3])
-        menu_data.drop(axis='columns', columns='Total.2', inplace=True)
-        menu_data.dropna(axis=0, how='all', inplace=True)
-        menu_data.rename(columns={menu_data.columns[0]: 'Menu item'}, inplace=True)
-        menu_data.rename(columns={menu_data.columns[1]: 'Meals sold'}, inplace=True)
-        menu_data.reset_index()
-
-        menu_items = []
-
-        for item in menu_data['Menu item']:
-            if not self.is_date(item) and not item == "Total":
-                menu_items.append(item)
-
-        return menu_items
+        self.nlp = spacy_stanza.load_pipeline(name="fi", processors="tokenize,lemma")
 
     def get_lemmas(self, menulist):
+        """Divides strings into unique lemmas.
+
+        Args:
+            menulist (list): List of strings (Menu items)
+
+        Returns:
+            list: List of unique lemmas
+        """
         lemmas = []
         for item in menulist:
             doc = self.nlp(item)
             for token in doc:
                 if not token.is_stop and not token.is_punct and not token.is_space:
                     lemmas.append(token.lemma_)
+                    #print(token.lemma_, flush=True)
         unique_lemmas = list(set(lemmas))
-
         return unique_lemmas
 
-    def one_hot(self, lemmas):
-        lemma_vectors = {}
+    def process_learn(self, input_list):
+        """Encodes menu items based on lemmas and saves them to database. Run seldom (slow).
 
-        for i, lemma in enumerate(lemmas):
-            vector = np.zeros(shape=len(lemmas))
-            vector[i] = 1
-            lemma_vectors[lemma] = vector
+        Args:
+            input_list (list): List of strings (Menu items)
 
-        return lemma_vectors
+        Returns:
+            list: Corresponding list of one-hot-encodings (lists of ones and zeroes)
+        """
 
-language_processor = LanguageProcessor()
+        # db = DatabaseRepository()
+        lemmas = self.get_lemmas(input_list)
+
+        one_hot_encoded_list = []
+        encoding_data = []
+
+        lemma_to_index = {lemma: idx for idx, lemma in enumerate(lemmas)}
+
+        for item in input_list:
+            item_vector = np.zeros(len(lemmas))
+            doc = self.nlp(item)
+            item_lemmas = [token.lemma_ for token in doc if not token.is_stop and not token.is_punct and not token.is_space]
+            for lemma in item_lemmas:
+                if lemma in lemmas:
+                    idx = lemmas.index(lemma)
+                    item_vector[idx] = 1
+            one_hot_encoded_list.append(item_vector.tolist())
+
+        for lemma, idx in lemma_to_index.items():
+            one_hot_vector = np.zeros(len(lemmas), dtype=int)
+            one_hot_vector[idx] = 1
+            encoding_data.append({'lemma': lemma, 'encoding': one_hot_vector.tolist()})
+
+        encoding_df = pd.DataFrame(encoding_data)
+        encoding_df.set_index('lemma', inplace=True)
+        print(encoding_df.head(10))
+        # db.insert_nlp_encoding(encoding_df)
+
+        return one_hot_encoded_list
+
+    def process(self, input_list):
+        """ Work in Progress
+            Divide input_list into lemmas
+            fetch corresponding one-hot-encodings from database
+            return list of encoded dishes
+
+        Args:
+            input_list (list): List of strings (Menu items) Recommended maximum: 7 items
+        Returns:
+            list: Corresponding list of one-hot-encodings (lists of ones and zeroes)
+        """
+        db = DatabaseRepository()
+        lemmas = self.get_lemmas(input_list)
+        one_hot_encoded_list = []
+
+        for item in input_list:
+            doc = self.nlp(item)
+            item_lemmas = [token.lemma_ for token in doc if not token.is_stop and not token.is_punct and not token.is_space]
+
+            for lemma in item_lemmas:
+                lemma_encoding = db.get_nlp_encoding(lemma)
+                lemma_encoding = lemma_encoding.values.tolist()
+
+                if lemma in lemmas:
+                    one_hot_encoded_list.append(lemma_encoding)
+
+        return one_hot_encoded_list
+
+
+# language_processor = LanguageProcessor()
 
 if __name__ == "__main__":
     lm = LanguageProcessor()
-    print(lm.process("kasvoin"))
-    menulist = lm.read_menu()
-    print(type(menulist))
-    print(menulist[1:10])
-    lemmas = lm.get_lemmas(menulist)
-    print(lemmas)
-    vectors = lm.one_hot(lemmas)
-    print(list(vectors.items())[1:10])
+    testlist = ["Kalapyörykät", "Kala, take-away", "Uunimakkara", "Kasviskorma", "Haukipyörykkä", "Paneroidut lohipihvit ja yrttikastiketta"]
+    encoded = lm.process_learn(testlist)
+    print(encoded)
+    print(len(testlist), len(encoded))

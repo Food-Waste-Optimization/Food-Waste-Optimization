@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
-from db_repository import db_repo
+from .db_repository import db_repo
+# from ..services.language_processor import language_processor
+
 
 class DataRepository:
     """Class to handle connection to data streams and manage data operations."""
@@ -9,7 +11,7 @@ class DataRepository:
         """
         Retrieve and process sold meals data from the database. 
 
-        - Take in the unprocessed data from the database:
+        - Take i_summary_n the unprocessed data from the database:
             sold meals data
 
         - Create a dataframe that has:
@@ -19,16 +21,36 @@ class DataRepository:
         Returns:
             pandas.DataFrame: The processed data.
         """
+        print("fetching data...")
         data = db_repo.get_sold_meals_data()
+        
+        # Map ids to actual values
+        data["Dish"] = db_repo.get_values_from_ids("dishes", "name", data.pop("dish_id").values)
+        data["Restaurant"] = db_repo.get_values_from_ids("restaurants", "name", data.pop("restaurant_id").values)
 
-        data = self.process_menu_items(data["Dish"])
-            
-        # run language processing for menu items
-        # create weekday column
+        hourly_data = data.groupby([pd.Grouper(key="datetime",
+                                                freq="h"),
+                                                "Restaurant"]).agg({
+                                                "amount": "sum",
+                                                "Dish": lambda x: str(set(x))
+                                                }).reset_index()
 
-        # group into restaurants?
+        hourly_data.set_index("datetime", inplace=True)
 
-        return data
+        hourly_data["weekday"] = hourly_data.index.dayofweek
+
+
+        # for testing
+        #hourly_data = hourly_data.head(10)  
+
+
+        # one hot encoding for menu items using nlp
+        # hourly_data["Dish"] = language_processor.process_learn(hourly_data["Dish"])
+
+        # for testing only use chemicum
+        hourly_data = hourly_data[hourly_data["Restaurant"] == "Chemicum"].drop(columns="Restaurant")
+
+        return hourly_data
     
     def get_model_predict_data(self):
         pass
@@ -75,8 +97,7 @@ class DataRepository:
             dict: avg occupancy by hour for each rest for each day
         """
 
-        df = pd.read_excel(
-            io="src/data/basic_mvp_data/tuntidata2.xlsx", index_col=0)
+        df = db_repo.get_occupancy_data()
 
         df = df.replace({"600 Chemicum": "Chemicum",
                         "610 Physicum": "Physicum", "620 Exactum": "Exactum"})
@@ -131,13 +152,54 @@ class DataRepository:
 
         return data.to_dict()
     
-    def process_menu_items(self):
-        """One hot encoding of menu items
-
-        Take in pd.Series and return pd.Series
-        but encoded
+    def save_latest_weekly_prediction(self, prediction):
+        """Save the latest prediction of sold meals
+        to be stored in a desired place. Currently in a database.
         """
-        pass
+        db_repo.insert_weekly_prediction(prediction)
+
+    def save_latest_biowaste_prediction(self, prediction):
+        """Save the latest biowaste prediction to be
+        stored in a desired place. Currently in a database."""
+        db_repo.insert_biowaste_prediction(prediction)
+
+    def save_latest_occupancy_prediction(self, prediction):
+        """Save the latest prediction of occupancy to be
+        stored in a desired place. Currently in a database."""
+        db_repo.insert_occupancy_prediction(prediction)
+
+    def get_latest_weekly_prediction(self):
+        """Fetch the latest prediction of sold meals
+        stored in a desired place. Currently in a database.
+        """
+        return db_repo.fetch_latest_weekly_prediction()
+
+    def get_latest_biowaste_prediction(self):
+        """Fetch the latest biowaste prediction
+        stored in a desired place. Currently in a database."""
+        return db_repo.fetch_latest_biowaste_prediction()
+
+    def get_latest_occupancy_prediction(self):
+        """Fetch the latest prediction of occupancy
+        stored in a desired place. Currently in a database."""
+        return db_repo.fetch_latest_occupancy_prediction()
+
+    def test_db(self):
+        if False:
+            db_repo.insert_biowaste()
+            db_repo.insert_sold_meals()
+            print("inserted")
+
+            print("Restaurants:")
+            print(db_repo.get_restaurant_data().head())
+            print("Biowaste:")
+            print(db_repo.get_biowaste_data().head())
+            print("Categories:")
+            print(db_repo.get_categories_data().head())
+            print("Dishes:")
+            print(db_repo.get_dish_data().head())
+            print("Sold lunches:")
+            print(db_repo.get_sold_meals_data().head())
 
 data_repo = DataRepository()
 

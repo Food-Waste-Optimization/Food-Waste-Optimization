@@ -1,100 +1,27 @@
-import { useState, useEffect } from 'react'
-import { MsalProvider, useMsal } from '@azure/msal-react'
-import { Routes, Route, useNavigate } from "react-router-dom"
-import { CustomNavigationClient } from "./utils/NavigationClient.js"
-import requestService from './services/requestservice.jsx'
-import Menu from './components/Menu.jsx'
-import MenuView from './components/MenuView.jsx'
-import AdminView from './components/AdminView.jsx'
-import UploadView from './components/UploadView.jsx'
-import Footer from './components/Footer.jsx'
-import ManagerView from './components/ManagerView.jsx'
-import GuestView from './components/GuestView.jsx'
-import 'bulma/css/bulma.min.css'
 
-const App = ({ instance }) => {
-   // The next 3 lines are optional. This is how you configure MSAL to take advantage of the router's navigate functions when MSAL redirects between pages in your app
-  const navigate = useNavigate()
-  const navigationClient = new CustomNavigationClient(navigate)
-  instance.setNavigationClient(navigationClient)
+import React from "react";
 
-  const [predData, setData] = useState(999)
-  const [ fetchedBiowasteData, setFetchedBiowasteData ] = useState([]) // variables containing all fetched biowaste data
-  const [ isLoadingBiowaste, setIsLoadingBiowaste ] = useState(true)
-  const [ fetchedMenuData, setFetchedMenuData ] = useState([])
-  const [ isLoadingMenuData, setIsLoadingMenuData ] = useState(true)
+import { Chart as ChartJS, defaults } from "chart.js/auto";
 
-  // for debugging ->
-  const { msInstance, accounts, inProgress } = useMsal()
-  console.log(msInstance)
-  if (accounts.length > 0) {
-      console.log('accounts signed in:', accounts.length)
-  } else if (inProgress === "login") {
-      console.log('log in in progress')
-  } else {
-    console.log('no users signed in')
-  }
-  // debugging end
+import "./App.css";
+import Form from "./Form"
 
-  useEffect(() => {
-    let ignore = false
-    let ignoreBiowaste = false
-    let ignoreMenus = false
-    const fetchData = async () => {
-      try {
-        const response = await requestService.getDataFromFlask()
-        if (!ignore) {
-          setData(response.data)          
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      }
-      try {
-        const responseBiowaste = await requestService.getBiowastePrediction()
-        console.log(responseBiowaste.data)
-        if (!ignoreBiowaste) {
-          console.log(responseBiowaste.data)
-          setFetchedBiowasteData(responseBiowaste.data)
-          setIsLoadingBiowaste(false)
-        }
-      } catch (error) {
-        console.log('Error fetching biowaste data: ', error)
-      }
-      try {
-        const responseMenus = await requestService.getDataForMenus()
-        if (!ignoreMenus) {
-          setFetchedMenuData(responseMenus.data)
-          setIsLoadingMenuData(false)
-        }
-      } catch (error) {
-        console.log('Error fetching data for menus: ', error)
-      }
-    }
-    fetchData()
-    return () => {
-      ignore = true
-      ignoreBiowaste = true
-      ignoreMenus = true
-    }
-  }, [])
+defaults.maintainAspectRatio = false;
+defaults.responsive = true;
 
+defaults.plugins.title.display = true;
+defaults.plugins.title.align = "start";
+defaults.plugins.title.font.size = 20;
+defaults.plugins.title.color = "black";
+
+export const App = () => {
   return (
-    <>
-    <MsalProvider instance={instance}>
-      <Menu instance={instance}></Menu>
-      <Routes>
-            <Route path="/" element={<GuestView instance={instance} fetchedBiowasteData={fetchedBiowasteData.customerBiowaste} isLoadingBiowaste={isLoadingBiowaste}/>} />
-            <Route path="/fwowebserver" element={<GuestView instance={instance} fetchedBiowasteData={fetchedBiowasteData.customerBiowaste} isLoadingBiowaste={isLoadingBiowaste}/>} />
-            <Route path="/sales" element={<ManagerView predData={predData} isLoadingBiowaste={isLoadingBiowaste} fetchedBiowasteData={fetchedBiowasteData}/>} />
-            <Route path="/menus" element={<MenuView fetchedMenuData={fetchedMenuData} isLoadingMenuData={isLoadingMenuData}/>} />
-            <Route path="/admin" element={<AdminView />} />
-            <Route path="/upload" element={<UploadView />} />
-        </Routes>
-      <Footer></Footer>      
-    </MsalProvider>
-    </>
-  )
 
-}
+    <div className="App">
 
-export default App
+      <Form />
+      
+    </div>
+    
+  );
+};

@@ -3,16 +3,26 @@ import { loginRequest } from '../utils/authConfig.js'
 import { Link } from 'react-router-dom'
 import 'bulma/css/bulma.min.css'
 
+// The Menu bar for the App. Different content for unauthenticated and authenticated users.
+
 const Menu = ({ instance }) => {
 
+  // The MS - logout function. Must have the instance as a prop to function properly
     const handleLogoutRedirect = () => {
         instance.logoutRedirect().catch((error) => console.log(error))
     }
 
+  // The MS - login function
     const handleLoginRedirect = () => {
       instance.loginRedirect(loginRequest).catch((error) => console.log(error))
   }
 
+  // helper variable to define the URL in Link-tag:
+  const MODE = import.meta.env.MODE
+
+  console.log('mode from menu: ', MODE)
+
+  // Returns the menu bar. The authenticated version contains URL:s defined in the App.jsx to switch between views.
     return (
       <>
       <UnauthenticatedTemplate>
@@ -53,7 +63,7 @@ const Menu = ({ instance }) => {
                 <div className="navbar-item is-right">
                   <div className="buttons">
                     <button className="signInButton" onClick={handleLogoutRedirect}>
-                    <Link to={`/`} className="button is-light">
+                    <Link to={ MODE == 'development' ? "/" : "/fwowebserver"} className="button is-light">
                       Sign out
                     </Link>
                    </button>
@@ -65,10 +75,10 @@ const Menu = ({ instance }) => {
         </nav>
         <div className="tabs">
         <ul>
-          <li><Link to={`/fwowebserver`}>Front Page</Link></li>
-          <li><Link to={`/sales`}>Manager View</Link></li>
-          <li><Link to={`/menus`}> Menu Creators View</Link></li>
-          <li><Link to={`/upload`}>Data upload</Link></li>
+          <li><Link to={ MODE == 'development' ? '/' : '/fwowebserver'}>Front Page</Link></li>
+          <li><Link to={ MODE == 'development' ? '/sales' : '/fwowebserver/sales'}>Manager View</Link></li>
+          <li><Link to={ MODE == 'development' ? '/menus' : '/fwowebserver/menus'}> Menu Creators View</Link></li>
+          <li><Link to={ MODE == 'development' ? '/upload' : '/fwowebserver/upload' }>Data upload</Link></li>
         </ul>
       </div>
     </AuthenticatedTemplate>

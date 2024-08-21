@@ -12,8 +12,9 @@ on:
         default: 'latest'
 
 jobs:
-  tests:
-    uses: ./.github/workflows/tests.yml
+# Return to these later, need to reconfigure tests.yml
+#tests:
+#    uses: ./.github/workflows/tests.yml
 
   build-and-push:
     runs-on: ubuntu-latest

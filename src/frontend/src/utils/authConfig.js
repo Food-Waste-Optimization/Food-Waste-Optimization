@@ -5,13 +5,15 @@
 
 import { LogLevel } from '@azure/msal-browser';
 
-// Setting id, authority and uri according to MODE:
+// Setting up id, authority and uri according to MODE:
 var id = import.meta.env.VITE_CLIENT_ID_PRODUCTION
 var authority = import.meta.env.VITE_AUTHORITY
 var uri = import.meta.env.VITE_URI_PRODUCTION
+var logoutUri = "/fwowebserver"
 if (import.meta.env.MODE == 'development') {
     id = import.meta.env.VITE_CLIENT_ID_DEVELOPMENT
     uri = import.meta.env.VITE_URI_DEVELOPMENT
+    logoutUri = "/"
 }
 /**
  * Configuration object to be passed to MSAL instance on creation.
@@ -23,7 +25,7 @@ export const msalConfig = {
         clientId: id, // This is the ONLY mandatory field that you need to supply.
         authority: authority, // Replace the placeholder with your tenant subdomain 
         redirectUri: uri, // Points to window.location.origin. You must register this URI on Azure Portal/App Registration.
-        postLogoutRedirectUri: '/', // Indicates the page to navigate after logout.
+        postLogoutRedirectUri: logoutUri, // Indicates the page to navigate after logout.
         navigateToLoginRequestUrl: false, // If "true", will navigate back to the original request location before processing the auth code response.
     },
     cache: {

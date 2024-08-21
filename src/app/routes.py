@@ -1,17 +1,38 @@
-from flask import render_template, jsonify, make_response
-# from ..services import model_service
+import traceback
+
+import pandas as pd
+from flask import jsonify, make_response, render_template, request
+
+from src.services import model_service
+
 from ..app.app import app
+
+""" 
+    All the routes the app uses are defined here. Data is accessed through the ModelService
+    Currently imports and load_model() are off -> switch these on once the database is running.
+    Once database is in use, import for pandas is not needed anymore.
+"""
+
+model = model_service.ModelService()
 
 # model = model_service.ModelService()
 # model.load_model()
 
-import pandas as pd
+# == APIs for Others ===================================================================================================================
 
+"""Route for testing database connection. 
+    Returns:
+        Can be used to return test data
+"""
 @app.route("/dbtest")
 def db_conn_test():
     return "not testing database connection"
 
-
+"""Root URL. Currently does not return anything while running locally - use localhost:8080 instead to access front end.
+    While running on server returns the static files of React build - version. See configuration on app.py.
+    Returns:
+        Static html-file: React build version located on frontend/dist.
+"""
 @app.route("/")
 @app.route("/fwowebserver")
 def initial_view():
@@ -20,12 +41,20 @@ def initial_view():
 
     return resp
 
+"""URL for testing returning prediction data.
+    Returns:
+        JSON: Object containing prediction from predicted.txt. 
+"""
 @app.route('/api/data')
 def get_data_for_wednesday():
     with open('src/data/predicted.txt', mode='r') as file:
         prediction = file.readline()
         return jsonify({'content': prediction })
 
+"""URL for GET requests of data of occupancy. 
+    Returns:
+        JSON: Json Object containing data of occupancy of different restaurants
+"""
 @app.route('/data/occupancy')
 def hardcoded_occupancy_data():
     data = {'Chemicum': {
@@ -56,7 +85,10 @@ def hardcoded_occupancy_data():
 #     data = model.predict_occupancy()
 #     print('data occupancy: ', data, flush=True)
 #     return data
-
+"""URL for GET requests of data of biowaste.
+    Returns:
+        JSON: Json Object containing data of biowaste of restaurants. 
+"""
 @app.route('/data/biowaste')
 def hardcoded_biowaste_data():
     data =  {'Asiakasbiojäte. tiski (kg) per Kuitti kpl (kg)': {
@@ -132,10 +164,13 @@ def hardcoded_biowaste_data():
         'hallBiowaste': data_dining
     })
 
+"""URL for GET - requests to get data of division of sold lunches.
+    Returns:
+        JSON: Json object containing data of sold lunches by food categories / restaurant.
+"""
 @app.route('/data/menus')
 def hardcoded_menu_data():
     df = pd.read_csv("src/data/basic_mvp_data/Sold lunches.csv", sep=";")
-    print(df.head(), flush=True)
 
     df['Date'] = pd.to_datetime(df['Date'], format="%d.%m.%Y")
     df = df.set_index('Date')
@@ -253,3 +288,206 @@ def hardcoded_menu_data():
                     }                    
                 })
 
+
+
+# == APIs for Forecast ===================================================================================================================
+@app.route('/forecast/receipts')
+def forecast_receipt():
+    resp = None
+
+    # Request checking
+    days_raw = request.args.get('days')
+    if days_raw is None:
+        resp = make_response("Invalid query argument: 'days'", 400)
+        
+
+    if resp is None:
+        assert days_raw
+
+        try:
+            days = int(days_raw)
+        except Exception as e:
+            # tb = traceback.format_exc()
+
+            resp = make_response(f"Error with query argument 'days': {e}", 400)
+    
+    if resp is None:
+        data = model.forecast_receipt(days)
+
+        resp = make_response(jsonify(data), 200)
+    
+    return resp
+
+@app.route('/forecast/biowaste')
+def forecast_biowaste():
+    resp = None
+
+    # Request checking
+    days_raw = request.args.get('days')
+    if days_raw is None:
+        resp = make_response("Invalid query argument: 'days'", 400)
+        
+
+    if resp is None:
+        assert days_raw
+
+        try:
+            days = int(days_raw)
+        except Exception as e:
+            # tb = traceback.format_exc()
+
+            resp = make_response(f"Error with query argument 'days': {e}", 400)
+    
+    if resp is None:
+        data = model.forecast_biowaste(days)
+
+        resp = make_response(jsonify(data), 200)
+    
+    return resp
+
+@app.route('/forecast/occupancy')
+def forecast_occupancy():
+    resp = None
+
+    # Request checking
+    days_raw = request.args.get('days')
+    if days_raw is None:
+        resp = make_response("Invalid query argument: 'days'", 400)
+        
+
+    if resp is None:
+        assert days_raw
+
+        try:
+            days = int(days_raw)
+        except Exception as e:
+            # tb = traceback.format_exc()
+
+            resp = make_response(f"Error with query argument 'days': {e}", 400)
+    
+    if resp is None:
+        data = model.forecast_occupancy(days)
+
+        resp = make_response(jsonify(data), 200)
+    
+    return resp
+
+
+@app.route('/forecast/meal')
+def forecast_meal():
+    resp = None
+
+    # Request checking
+    days_raw = request.args.get('days')
+    if days_raw is None:
+        resp = make_response("Invalid query argument: 'days'", 400)
+        
+
+    if resp is None:
+        assert days_raw
+
+        try:
+            days = int(days_raw)
+        except Exception as e:
+            # tb = traceback.format_exc()
+
+            resp = make_response(f"Error with query argument 'days': {e}", 400)
+    
+    if resp is None:
+        data = model.forecast_sold_meals(days)
+
+        resp = make_response(jsonify(data), 200)
+    
+    return resp
+
+
+@app.route('/forecast/biowaste_from_meals')
+def biowaste_from_meals():
+    resp = None
+
+    # Request checking
+    restaurant = request.args.get('restaurant', None)
+    if restaurant is None or not isinstance(restaurant, str) or restaurant not in ['Chemicum', 'Physicum', 'Exactum']:
+        resp = make_response("Invalid query argument: 'restaurant'", 400)
+    
+    return_type = request.args.get('return_type', None)
+    if return_type is None or not isinstance(return_type, str) or return_type not in ['image', 'numeric']:
+        resp = make_response("Invalid query argument: 'return_type'", 400)
+
+    num_meals = {
+        'num_fish': 0,
+        'num_chicken': 0,
+        'num_vegetarian': 0,
+        'num_meat': 0,
+        'num_vegan': 0,
+    }
+    for meal_type in num_meals.keys():
+        num = request.args.get(meal_type)
+        if meal_type is None:
+            resp = make_response(f"Invalid query argument: '{meal_type}'", 400)
+
+            break
+
+        num_meals[meal_type] = float(num)
+        
+
+    if resp is None:
+        try:
+            assert restaurant
+            assert return_type
+            buf = model.forecast_biowaste_with_meal(restaurant=restaurant, **num_meals, return_type=return_type)
+
+            resp = make_response(buf, 200)
+            if isinstance(buf, dict):
+                resp.headers.set('Content-Type', 'application/json')
+            else:
+                resp.headers.set('Content-Type', 'image/png')
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(tb)
+
+            resp = make_response(f"Error: {e}", 500)
+    
+    return resp
+
+
+@app.route('/forecast/co2_from_meals')
+def co2_from_meals():
+    resp = None
+
+    # Request checking
+    restaurant = request.args.get('restaurant', None)
+    if restaurant is None or not isinstance(restaurant, str) or restaurant not in ['Chemicum', 'Physicum', 'Exactum']:
+        resp = make_response("Invalid query argument: 'restaurant'", 400)
+
+    num_meals = {
+        'num_fish': 0,
+        'num_chicken': 0,
+        'num_vegetarian': 0,
+        'num_meat': 0,
+        'num_vegan': 0,
+    }
+    for meal_type in num_meals.keys():
+        num = request.args.get(meal_type)
+        if meal_type is None:
+            resp = make_response(f"Invalid query argument: '{meal_type}'", 400)
+
+            break
+
+        num_meals[meal_type] = float(num)
+        
+
+    if resp is None:
+        try:
+            assert restaurant
+            buf = model.forecast_co2_with_meal(restaurant=restaurant, **num_meals)
+
+            resp = make_response(buf, 200)
+            resp.headers.set('Content-Type', 'application/json')
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(tb)
+
+            resp = make_response(f"Error: {e}", 500)
+    
+    return resp

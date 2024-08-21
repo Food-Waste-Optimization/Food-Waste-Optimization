@@ -11,14 +11,20 @@ import MenuChart from './MenuChart'
 import Unauthorized from './Unauthorized'
 import 'bulma/css/bulma.min.css'
 
+// Component returning sub components presenting views to compare menu items of lunches sold in different quartals. 
+// Data comes from App.jsx as props and is passed to sub components.
+
 const MenuView = ({ fetchedMenuData, isLoadingMenuData}) => {
 
+    // Different charts are imported and registered here and passed to sub component MenuChart.jsx as props.
+    // ChartMenus and Doughnuts must have different names to prevent conflicts.
     ChartMenus1.register(ArcElement, LinearScale, Title, Tooltip, Legend)
     ChartMenus2.register(ArcElement, LinearScale, Title, Tooltip, Legend)
     ChartMenus3.register(ArcElement, LinearScale, Title, Tooltip, Legend)
     ChartMenus4.register(ArcElement, LinearScale, Title, Tooltip, Legend)           
 
 
+    // For authenticated users MenuCharts are returned. Unauthenticated users see the component Unauthorized.jsx.
     return (
         <div>
             <AuthenticatedTemplate>

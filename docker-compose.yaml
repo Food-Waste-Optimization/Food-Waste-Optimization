@@ -5,20 +5,21 @@ services:
     image: fwoapp
     build: .
     volumes:
-    # set this according to where your data folder located
-      - ./data:/app/src/data/
-    
+      # set this according to where your data folder located
+      - ${DATA}:/app/src/data/
+    # - /home/hoanghu/projects/fwo_test/src/data:/app/src/data/
+
     environment:
-#      DB_USER: /run/secrets/db_user
-#      DB_PASSWORD_FILE: /run/secrets/db_password
-#      DB_HOST: /run/secrets/db_host
-#      DB_NAME: /run/secrets/db_name
+      #      DB_USER: /run/secrets/db_user
+      #      DB_PASSWORD_FILE: /run/secrets/db_password
+      #      DB_HOST: /run/secrets/db_host
+      #      DB_NAME: /run/secrets/db_name
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: ${DB_HOST}
-      DB_NAME: ${DB_NAME}      
+      DB_NAME: ${DB_NAME}
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
-      
+
     ports:
       - 5000:5000
 

@@ -5,22 +5,25 @@ import { Chart as ChartJS, LinearScale, ArcElement, Title, Tooltip, Legend } fro
 import Unauthorized from './Unauthorized.jsx'
 import 'bulma/css/bulma.min.css'
 
-const ManagerView = ({ predData, fetchedBiowasteData, isLoadingBiowaste }) => {
+// Component to present data for managers: sales data, data on biowaste and possible others. Currently
+// displaying only the full biowaste data (the same data is partly presented on GuestView.jsx)
 
-    ChartJS.register(ArcElement, LinearScale, Title, Tooltip, Legend);
+const ManagerView = ({ fetchedBiowasteData, isLoadingBiowaste }) => {
+
+    ChartJS.register(ArcElement, LinearScale, Title, Tooltip, Legend)
 
     const [ titleForForecast, setTitleForForecast ] = useState('Estimated Biowaste, Chemicum, Monday')
-    const restaurants = ['Chemicum', 'Exactum', 'Physicum']
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const [ selectedRestaurant, setSelectedRestaurant ] = useState('Chemicum')
-    const [ selectedDayIndex, setSelectedDayIndex ] = useState(0)
-    const [ selectedDay, setSelectedDay ] = useState('Monday')
-    const [ selectedRestaurantIndex, setSelectedRestaurantIndex ] = useState(0)
+    const restaurants = ['Chemicum', 'Exactum', 'Physicum']  // used to dynamically create buttons
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']  // used to dynamically create buttons
+    const [ selectedRestaurant, setSelectedRestaurant ] = useState('Chemicum') // These 4 variables are used to present the selected part
+    const [ selectedDayIndex, setSelectedDayIndex ] = useState(0)              // of data based on user's choice.
+    const [ selectedDay, setSelectedDay ] = useState('Monday')                 //
+    const [ selectedRestaurantIndex, setSelectedRestaurantIndex ] = useState(0)//
     const [ dataToDisplay, setDataToDisplay ] = useState({
       labels: ['Coffee', 'Customer', 'Kitchen', 'Hall'],
       datasets: [{
           label: 'Estimated biowaste',
-            data: [10, 10, 10, 10],
+            data: [10, 10, 10, 10],  // dummy list used when actual data has not been loaded yet
             borderWidth: 1,
             backgroundColor: ['black', 'red', 'blue', 'yellow'],
             borderColor: ['white'],
@@ -29,26 +32,22 @@ const ManagerView = ({ predData, fetchedBiowasteData, isLoadingBiowaste }) => {
 
     useEffect(() => {
       const createDataForChart = () => {
-        if (isLoadingBiowaste) {
+        if (isLoadingBiowaste) { // setting up a placeholder while real data is fetched
           setDataToDisplay(      {
             labels: ['Coffee', 'Customer', 'Kitchen', 'Hall'],
             datasets: [{
                 label: 'Estimated biowaste',
-                  data: [10, 10, 10, 10],
+                  data: [10, 10, 10, 10], // dummy list
                   borderWidth: 1,
                   backgroundColor: ['black', 'red', 'blue', 'yellow'],
                   borderColor: ['white'],
                 }]
             })
-        } else {
+        } else { // setting up real data to display
           const coffee = fetchedBiowasteData.coffeeBiowaste[selectedRestaurantIndex][selectedRestaurant][selectedDayIndex]
           const customer = fetchedBiowasteData.customerBiowaste[selectedRestaurantIndex][selectedRestaurant][selectedDayIndex]
           const kitchen = fetchedBiowasteData.kitchenBiowaste[selectedRestaurantIndex][selectedRestaurant][selectedDayIndex]
           const hall = fetchedBiowasteData.hallBiowaste[selectedRestaurantIndex][selectedRestaurant][selectedDayIndex]
-          console.log(coffee) 
-          console.log(customer)
-          console.log(kitchen)
-          console.log(hall)
           const all = [coffee, customer, kitchen, hall]
           setDataToDisplay(
           {
@@ -66,12 +65,14 @@ const ManagerView = ({ predData, fetchedBiowasteData, isLoadingBiowaste }) => {
     }
       createDataForChart()
       setTitleForForecast(`Estimated Biowaste, ${selectedRestaurant}, ${selectedDay}`)
-    }, [selectedRestaurant, selectedDay, selectedDayIndex, selectedRestaurantIndex, fetchedBiowasteData, isLoadingBiowaste])
+    }, [selectedRestaurant, selectedDay, selectedDayIndex, selectedRestaurantIndex, fetchedBiowasteData, isLoadingBiowaste]) // Dependencies for use effect - loop. The view is updated when one of the dependencies change
 
+    // If data is not loaded yet, this is returned:
     if (isLoadingBiowaste) {
       return <div>Is loading...</div>
     }
 
+    // options for the chart
     const options = {
         aspectRatio: 1,
         responsive: true,
@@ -79,34 +80,27 @@ const ManagerView = ({ predData, fetchedBiowasteData, isLoadingBiowaste }) => {
         radius: '50%',
     }
 
+    // onClick-function to handle selection of restaurant
     const handleRestaurantChange = (event, i) => {   
       setSelectedRestaurant(event.currentTarget.value)
       setSelectedRestaurantIndex(i)
     }
 
+    // onClick-function to handle selection of day
     const handleDayChange = (event, day) => {
       setSelectedDayIndex(event.currentTarget.value)
       setSelectedDay(day)
     }
 
-
+    // For authenticated users returns title of forecast, doughnut chart presenting a selection of data, dynamically created buttons, and functions for the buttons to update the view.
+    // Unauthenticated users see the component Unauthorized.jsx
     return (
         <>
         <AuthenticatedTemplate>
-
-        {/* <h5 className="title is-5" id="title-of-forecast-2">Model Based Estimation of Number of Meals Sold for the Next Wednesday</h5>
-                    <h5 className="title is-5" id="space-for-forecast">
-                                            {predData && ( 
-                            <div className="is-success is-light">{JSON.stringify(predData.content, null, 2)}</div>
-                            )}
-        </h5> */}
         <div className="fixed-grid has-8-cols">
             <div className="grid">
                 <div className="cell"></div>
                 <div className="cell"></div>
-
-
-
                 <div className="cell  is-col-span-4">
                     <h5 className="title is-5" id="title-of-forecast-1">{titleForForecast}</h5>
                     <Doughnut options={options} data={dataToDisplay}></Doughnut>
@@ -129,18 +123,13 @@ const ManagerView = ({ predData, fetchedBiowasteData, isLoadingBiowaste }) => {
                             })}
                           </div>
                     </div>
-
                     </div>
-                
                 <div className="cell"></div>
                 <div className="cell"></div>
                 <div className="cell"></div>
                 <div className="cell"></div>
                 <div className="cell"></div>
                 </div>
-                
-                            
-                
         </AuthenticatedTemplate>
         <UnauthenticatedTemplate>
             <Unauthorized></Unauthorized>
