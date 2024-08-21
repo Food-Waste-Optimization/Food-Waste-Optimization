@@ -24,6 +24,10 @@ RUN chmod -R 777 * && npm run build-prod
 ### Building container for flask app
 FROM python:3.9-slim
 
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+RUN apt-get -y install curl
+RUN apt-get install libgomp1
+
 RUN pip3 install poetry==1.8.2
 
 WORKDIR /app
@@ -52,9 +56,9 @@ COPY . .
 
 COPY --from=BUILD_FRONT /app/dist/ /app/src/frontend/dist
 
-RUN chmod -R 777 * && poetry lock && poetry install --without dev &&
-    find /app/src/frontend -mindepth 1 ! -regex '^/app/src/frontend/dist\(/.*\)?' -delete &&
-    rm -r /app/Documentation /app/README.md /app/docker-compose.yaml
+RUN chmod -R 777 * && poetry lock && poetry install --without dev && \
+find /app/src/frontend -mindepth 1 ! -regex '^/app/src/frontend/dist\(/.*\)?' -delete && \
+rm -r /app/Documentation /app/README.md /app/docker-compose.yaml
 
 EXPOSE 5000
 
