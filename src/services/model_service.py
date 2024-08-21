@@ -10,6 +10,7 @@ import seaborn as sns
 from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
 from sklearn.exceptions import NotFittedError
+from xgboost import XGBRegressor
 
 from ..repositories.data_repository import data_repo
 
@@ -33,7 +34,8 @@ class ModelService:
             'meal': {},
 
             'receipt_per_day': None,
-            "biowaste_from_meal": {},
+            'biowaste_from_meal': {},
+            'co2_from_meal': {},
         }
         self._load_receipt_forecaster()
         self._load_biowaste_forecaster()
@@ -42,6 +44,7 @@ class ModelService:
 
         self._load_receipt_byday_forecaster()
         self._load_biowaste_from_meal_forecaster()
+        self._load_co2_from_meal_forecaster()
 
         plt.style.use('seaborn-v0_8')
         plt.rcParams.update({'font.size': 8})
@@ -136,6 +139,18 @@ class ModelService:
             path_model = Path(f"trained_models/biowaste/Jul24_Lasso_{restaurant}.onnx")
 
             self.models['biowaste_from_meal'][restaurant] = rt.InferenceSession(path_model, providers=["CPUExecutionProvider"])
+
+    def _load_co2_from_meal_forecaster(self):
+        logger.info("Load trained co2 from meal forecasting models by restaurant")
+
+        for restaurant in RESTAURANTS:
+            path_model = Path(f"trained_models/co2/Aug21_XGBoost_{restaurant}.json")
+
+            assert path_model.exists()
+
+            regressor = XGBRegressor()
+            regressor.load_model(path_model)
+            self.models['co2_from_meal'][restaurant] = regressor
 
 
     def _post_process(self, prediction):
@@ -466,6 +481,38 @@ class ModelService:
             }
         else:
             raise NotImplementedError
+
+        return ret
+    
+    def forecast_co2_with_meal(
+        self,
+        restaurant: str,
+        num_fish: float,
+        num_chicken: float,
+        num_vegetarian: float,
+        num_meat: float,
+        num_vegan: float,
+    ):
+        # Predict co2
+        X_predict = np.array(
+            [[
+                num_fish,
+                num_chicken,
+                num_vegetarian,
+                num_meat,
+                num_vegan,
+            ]]
+            , dtype=np.float32
+        )
+
+        model = self.models['co2_from_meal'][restaurant]
+        
+        pred_co2 = model.predict(X_predict)
+
+
+        ret = {
+            'predicted_co2': pred_co2.squeeze().item(),
+        }
 
         return ret
 
