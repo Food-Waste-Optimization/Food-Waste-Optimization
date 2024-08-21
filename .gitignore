@@ -22,4 +22,3 @@ src/data/
 data
 node_modules/
 src/frontend/ReactFrontEnd/
-trained_models/
