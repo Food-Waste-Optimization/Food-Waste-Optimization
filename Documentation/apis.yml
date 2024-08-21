@@ -127,6 +127,65 @@ paths:
                   $ref: "#/components/schemas/BiowasteFromMealPredictionJSON"
         "400":
           description: Invalid query argument
+  /forecast/co2_from_meals:
+    get:
+      tags:
+        - Forecast
+      summary: Get predicted CO2 given no. meals per type
+      description: Get predicted CO2 amount given different waste types from number of sold meals
+      parameters:
+        - name: restaurant
+          in: query
+          description: Restaurant
+          required: true
+          schema:
+            type: string
+            enum: [Chemicum, Physicum, Exactum]
+        - name: num_fish
+          in: query
+          description: Number of fish meals
+          required: true
+          schema:
+            type: integer
+        - name: num_chicken
+          in: query
+          description: Number of chicken meals
+          required: true
+          schema:
+            type: integer
+        - name: num_vegetarian
+          in: query
+          description: Number of vegetarian meals
+          required: true
+          schema:
+            type: integer
+        - name: num_meat
+          in: query
+          description: Number of meat meals
+          required: true
+          schema:
+            type: integer
+        - name: num_vegan
+          in: query
+          description: Number of vegan meals
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: successful operation
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CO2FromMealPredictionJSON"
+        "400":
+          description: Invalid query argument
   /forecast/receipts:
     get:
       tags:
@@ -255,6 +314,13 @@ components:
           type: number
           format: float
           example: 45.39
+    CO2FromMealPredictionJSON:
+      type: object
+      properties:
+        predicted_co2:
+          type: number
+          format: float
+          example: 154.926
     BiowastePrediction:
       type: object
       properties:
