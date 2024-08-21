@@ -1,0 +1,17 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY . .
+
+RUN chmod -R 777 *
+
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+
+RUN pip3 install poetry
+
+RUN poetry lock
+
+RUN poetry install
+
+CMD [ "poetry", "run", "python3","-m", "src.services.model_service" ]
