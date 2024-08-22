@@ -381,7 +381,7 @@ export default function Form() {
                 plugins: {
                   title: {
                     display: true,
-                    text: "Carbon emissions",
+                    text: "Carbon emissions (in kg CO2e)",
                   },
                   legend: {
                     display: false,
