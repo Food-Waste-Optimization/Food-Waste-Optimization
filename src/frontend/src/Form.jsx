@@ -258,10 +258,10 @@ export default function Form() {
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Customers', 'Kitchen'],
+                  labels: ['Customer waste (kg)', 'Kitchen waste (kg)'],
                   datasets: [
                     {
-                      label: "Waste",
+                      label: "",
                       data: [
                         chartData.wasteFromCustomers[0],
                         chartData.wasteFromKitchen[0]
@@ -298,10 +298,10 @@ export default function Form() {
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Waste per customer'],
+                  labels: ['Waste per customer (g)'],
                   datasets: [
                     {
-                      label: "Waste (g)",
+                      label: "",
                       data: chartData.wastePerCustomer,
                       backgroundColor: ["#a55eea"],
                     },
@@ -332,10 +332,10 @@ export default function Form() {
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Receipts'],
+                  labels: ['Number of receipts'],
                   datasets: [
                     {
-                      label: "Number of receipts",
+                      label: "",
                       data: chartData.receipts,
                       backgroundColor: ["#0be881"],
                     },
@@ -366,7 +366,7 @@ export default function Form() {
             <div className="cardoutput">
               <Bar
               data={{
-                labels: ['Emissions'],
+                labels: ['Carbon emissions (kg CO2e)'],
                 datasets: [
                   {
                     label: "",
