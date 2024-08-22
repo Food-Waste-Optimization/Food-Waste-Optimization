@@ -105,7 +105,7 @@ export default function Form() {
         
         <img src={logopeople} width={200}></img>
         <img src={logofood} width={120}></img>
-        <div class="title">Unicafe food waste prediction</div>
+        <div class="title"><h2>Unicafe food waste prediction</h2></div>
         <hr class="line" />
       </div>
 
