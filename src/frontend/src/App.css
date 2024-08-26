@@ -1,6 +1,7 @@
 .App {
   width: 100%;
-  background: linear-gradient(73deg, rgba(134,161,255,1) 51%, rgba(192,195,254,1) 76%, rgba(255,238,206,0.9121849423363095) 100%);
+  background: linear-gradient(73deg, rgba(211, 233, 191, 1) 76%,rgba(255, 246, 235, 1)
+  100%);
   padding-left: 40px;
   padding-right: 40px;
   padding-top: 20px;
@@ -49,10 +50,10 @@ img {
   vertical-align: top;
   padding: 10px 20px 20px 20px;
   margin: 5px 25px 5px 5px;
-  background-color:  rgba(134,161,255,1);
-  -webkit-box-shadow: 10px 10px 33px -14px rgba(5,28,173,1);
-  -moz-box-shadow: 10px 10px 33px -14px rgba(5,28,173,1);
-  box-shadow: 10px 10px 33px -14px rgba(5,28,173,1);
+  background-color: #D3E9BF;
+  -webkit-box-shadow: 10px 10px 33px -14px #155C2C;
+  -moz-box-shadow: 10px 10px 33px -14px#155C2C;
+  box-shadow: 10px 10px 33px -14px #155C2C;
 }
 
 .cardinput {
@@ -64,9 +65,6 @@ img {
   padding: 15px;
   margin-bottom:30px;
   background-color: white;
-  -webkit-box-shadow: 10px 10px 64px -34px rgba(60,64,198,1);
-  -moz-box-shadow: 10px 10px 64px -34px rgba(60,64,198,1);
-  box-shadow: 10px 10px 64px -34px rgba(60,64,198,1); 
 }
 
 .cardoutput {
@@ -78,9 +76,9 @@ img {
   padding: 15px;
   margin: 5px;
   background-color:white;
-  -webkit-box-shadow: 10px 10px 64px -34px rgba(60,64,198,1);
-  -moz-box-shadow: 10px 10px 64px -34px rgba(60,64,198,1);
-  box-shadow: 10px 10px 64px -34px rgba(60,64,198,1);
+  -webkit-box-shadow: 10px 10px 64px -34px #aad09a;
+  -moz-box-shadow: 10px 10px 64px -34px #aad09a;
+  box-shadow: 10px 10px 64px -34px #aad09a; 
 }
 
 @media (max-width: 1200px) {

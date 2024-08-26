@@ -210,10 +210,10 @@ export default function Form() {
                       values.vegetarian
                     ],
                     backgroundColor: [
-                      "#ffc048",
-                      "#ff5e57",
-                      "#a55eea",
-                      "#0be881",
+                      "#eec591",
+                      "#9dd4dd",
+                      "#c9a8eb",
+                      "#155C2C",
                       "#485460",
                     ],
                   },
@@ -242,8 +242,8 @@ export default function Form() {
           <Button
             variant="contained"
             sx={{
-              bgcolor: '#1C1C1C',
-              "&:hover": { bgcolor: '#575fcf', color: 'white' }
+              bgcolor: '#155C2C',
+              "&:hover": { bgcolor: '#1C1C1C', color: 'white' }
             }}
             size="large"
             onClick={fetchData}
@@ -267,8 +267,8 @@ export default function Form() {
                         chartData.wasteFromKitchen[0]
                       ],
                       backgroundColor: [
-                        "#ffc048",
-                        "#ff5e57",
+                        "#eec591",
+                        "#9dd4dd",
                       ],
                     },
                   ],
@@ -303,7 +303,7 @@ export default function Form() {
                     {
                       label: "",
                       data: chartData.wastePerCustomer,
-                      backgroundColor: ["#a55eea"],
+                      backgroundColor: ["#c9a8eb"],
                     },
                   ],
                 }}
@@ -337,7 +337,7 @@ export default function Form() {
                     {
                       label: "",
                       data: chartData.receipts,
-                      backgroundColor: ["#0be881"],
+                      backgroundColor: ["#155C2C"],
                     },
                   ],
                 }}
