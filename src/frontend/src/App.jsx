@@ -4,7 +4,9 @@ import React from "react";
 import { Chart as ChartJS, defaults } from "chart.js/auto";
 
 import "./App.css";
-import Form from "./Form"
+
+import Header from "./components/Header";
+import TabMenu from "./components/TabMenu";
 
 defaults.maintainAspectRatio = false;
 defaults.responsive = true;
@@ -19,7 +21,9 @@ export const App = () => {
 
     <div className="App">
 
-      <Form />
+      <Header />
+
+      <TabMenu />
       
     </div>
     

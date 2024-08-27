@@ -8,14 +8,20 @@
   padding-bottom: 300px;
   font-size: 16px;
   font-weight: bold;
+  line-height: 1.3;
 }
 
-.header {
-  width: 100%;
+h1 {
+  color: #155C2C;
+  padding-bottom: 20px;
 }
 
 h3 {
   padding-top: 10px;
+}
+
+.header {
+  width: 100%;
 }
 
 img {
@@ -24,14 +30,35 @@ img {
 
 .title {
   margin-top: 30px;
+  margin-bottom: 30px;
   vertical-align: middle;
   float: right;
+  text-align: right;
 }
 
 .line {
   width:100%;
-  margin: 10px;
   border: 1px solid black;
+}
+
+.menu {
+  width:100%;
+}
+
+.containergap {
+  display: flex;
+  flex-wrap: wrap;
+  padding-top: 20px;
+  gap: 100px;
+ 
+}
+
+.instructions {
+  width: 34%;
+}
+
+.instructionsimage {
+  width:60%;
 }
 
 .container {
@@ -87,11 +114,19 @@ img {
     margin-top: 30px;
     margin-right: 10px;
     float: left;
-    font-size: 24px;
+    text-align: left;
   }
 
-  .line {
-    border: 0px;
+  .containergap {
+    display: flex;
+  }
+
+  .instructions {
+  width: 100%;
+  }
+
+  .instructionsimage {
+  width:100%;
   }
 
   .container {

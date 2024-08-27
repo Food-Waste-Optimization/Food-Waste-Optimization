@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 
-import { Bar, Doughnut, Line, Scatter } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 
 import Button from '@mui/material/Button';
 import FormControl from '@mui/material/FormControl';
@@ -9,9 +9,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Slider from '@mui/material/Slider';
 import { styled } from '@mui/material/styles';
-
-import logopeople from './logos/logo_untanglingpeopleflow.png';
-import logofood from './logos/logo_foodwaste.png';
 
 
 const initialValues = {
@@ -52,7 +49,7 @@ const SliderWrapper = styled('div')(({ theme }) => ({
   marginBottom: 8,
 }));
 
-export default function Form() {
+export default function WastePredictionForm() {
   const [values, setValues] = useState(initialValues);
   const [chartData, setChartData] = useState({
     wasteFromCustomers: [0],
@@ -100,14 +97,6 @@ export default function Form() {
   return (
     
     <div>
-
-      <div className="header">
-        
-        <img src={logopeople} width={200}></img>
-        <img src={logofood} width={120}></img>
-        <div class="title"><h2>Unicafe food waste prediction</h2></div>
-        <hr class="line" />
-      </div>
 
       <div className="container">
 
