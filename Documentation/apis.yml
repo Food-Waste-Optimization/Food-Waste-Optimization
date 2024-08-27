@@ -112,6 +112,13 @@ paths:
           schema:
             type: string
             enum: [image, numeric]
+        - name: date
+          in: query
+          description: Date to predict
+          required: true
+          schema:
+            type: string
+            format: date
       responses:
         "200":
           description: successful operation

@@ -414,12 +414,27 @@ class ModelService:
         num_vegetarian: float,
         num_meat: float,
         num_vegan: float,
+        date: str,
         return_type: str,
     ):
         # Predict no. receipts next day
-        out = self.models['receipt_per_day'].predict(1)
-        date = out.time_index[0].strftime('%b %d, %Y')
-        n_rpts = out[f"{restaurant}_rcpts"] .data_array().to_numpy().squeeze().astype(np.int32).item()
+        date_pred = pd.to_datetime(date)
+
+        # Ensure the predicted day is not weekend
+        if date_pred.weekday() >= 5:
+            raise ValueError("Input date must not be weekend")
+
+        # Ensure the date must be greater or equal to '2024-05-09
+        DATE_FIRST_PREDICT = "2024-05-09"       # The day after the last available date in data
+        n_bdays = len(pd.bdate_range(start=DATE_FIRST_PREDICT, end=date_pred))
+        if n_bdays <= 0:
+            raise ValueError("Input date not after 2024-05-08")
+
+        out = self.models['receipt_per_day'].predict(n_bdays)
+
+        # logger.info(f"date_pred: {out.time_index[-1]}")
+
+        n_rpts = out[f"{restaurant}_rcpts"].data_array()[-1].to_numpy().squeeze().astype(np.int32).item()
 
         # Predict waste
         X_predict = pd.DataFrame({
@@ -473,7 +488,7 @@ class ModelService:
             ret = buf.read()
         elif return_type == "numeric":
             ret = {
-                'date': out.time_index[0].strftime('%Y-%m-%d'),
+                'date': date,
                 'predicted_waste_customer': pred_onx.squeeze()[0].item(),
                 'predicted_waste_kitchen': pred_onx.squeeze()[1].item(),
                 'predicted_num_receipts': n_rpts,

@@ -429,13 +429,20 @@ def biowaste_from_meals():
             break
 
         num_meals[meal_type] = float(num)
+
+    date = request.args.get('date', '2024-05-09')
+    try:
+        pd.to_datetime(date)
+    except Exception:
+        resp = make_response("Invalid query argument: 'date'", 400)
+
         
 
     if resp is None:
         try:
             assert restaurant
             assert return_type
-            buf = model.forecast_biowaste_with_meal(restaurant=restaurant, **num_meals, return_type=return_type)
+            buf = model.forecast_biowaste_with_meal(restaurant=restaurant, **num_meals, return_type=return_type, date=date)
 
             resp = make_response(buf, 200)
             if isinstance(buf, dict):
