@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import { styled } from '@mui/material/styles';
 
 import LandingPage from './LandingPage.jsx';
+import OccupancyPrediction from './OccupancyPrediction.jsx'
 import WastePredictionForm from "./WastePredictionForm.jsx"
 
 
@@ -50,10 +51,16 @@ export default function TabMenu() {
     
     <div className='menu'>
 
-      <CustomTabs value={value} onChange={handleChange}>
+      <CustomTabs
+        value={value}
+        onChange={handleChange}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+      >
         <CustomTab label="About" />
-        <CustomTab label="Daily waste prediction" />
         <CustomTab label="Hourly occupancy prediction" />
+        <CustomTab label="Daily waste prediction" />
       </CustomTabs>
 
       <CustomTabPanel value={value} index={0}>
@@ -61,11 +68,11 @@ export default function TabMenu() {
       </CustomTabPanel>
 
       <CustomTabPanel value={value} index={1}>
-        <WastePredictionForm />
+        <OccupancyPrediction />
       </CustomTabPanel>
 
       <CustomTabPanel value={value} index={2}>
-        occupancy prediction will go here
+        <WastePredictionForm />
       </CustomTabPanel>
 
     </div>

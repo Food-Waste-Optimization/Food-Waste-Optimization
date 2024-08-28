@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { Bar } from 'react-chartjs-2';
 
@@ -10,6 +10,12 @@ import Select from '@mui/material/Select';
 import Slider from '@mui/material/Slider';
 import { styled } from '@mui/material/styles';
 
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+
+import dayjs from 'dayjs';
+
 
 const initialValues = {
   chicken: 0,
@@ -18,6 +24,13 @@ const initialValues = {
   vegan: 0,
   vegetarian: 0,
   location: "Chemicum",
+};
+
+const minSelectableDate = dayjs('2024-05-09');
+
+const disableWeekends = (date) => {
+  const day = date.day(); 
+  return day === 0 || day === 6; 
 };
 
 const CustomSlider = styled(Slider)(({ theme }) => ({
@@ -51,6 +64,7 @@ const SliderWrapper = styled('div')(({ theme }) => ({
 
 export default function WastePredictionForm() {
   const [values, setValues] = useState(initialValues);
+  const [selectedDate, setSelectedDate] = useState(dayjs()); 
   const [chartData, setChartData] = useState({
     wasteFromCustomers: [0],
     wasteFromKitchen: [0],
@@ -72,8 +86,13 @@ export default function WastePredictionForm() {
     });
   };
 
+  const handleDateChange = (newValue) => {
+    setSelectedDate(newValue);
+  };
+
   const fetchData = async () => {
-    const urlWaste = `https://megasense-server.cs.helsinki.fi/fwowebserver/forecast/biowaste_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}&return_type=numeric`;
+    const date = selectedDate.format('YYYY-MM-DD'); 
+    const urlWaste = `https://megasense-server.cs.helsinki.fi/fwowebserver/forecast/biowaste_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}&return_type=numeric&date=${date}`;
     const urlCarbonEmissions = `https://megasense-server.cs.helsinki.fi/fwowebserver/forecast/co2_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}`
 
     try {
@@ -113,6 +132,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="chicken-slider"
               valueLabelDisplay="auto"
+              step={10}        
+              marks={true}     
             />
           </SliderWrapper>
 
@@ -127,6 +148,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="fish-slider"
               valueLabelDisplay="auto"
+              step={10}        
+              marks={true}     
             />
           </SliderWrapper>
 
@@ -141,6 +164,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="meat-slider"
               valueLabelDisplay="auto"
+              step={10}        
+              marks={true}     
             />
           </SliderWrapper>
 
@@ -155,6 +180,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="vegan-slider"
               valueLabelDisplay="auto"
+              step={10}        
+              marks={true}     
             />
           </SliderWrapper>
 
@@ -169,10 +196,12 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="vegetarian-slider"
               valueLabelDisplay="auto"
+              step={10}        
+              marks={true} 
             />
           </SliderWrapper>
 
-          <FormControl fullWidth variant="outlined" sx={{ marginBottom: 4 }}>
+          <FormControl fullWidth variant="outlined" sx={{ marginBottom: 2 }}>
             <Select
               id="location"
               value={values.location}
@@ -182,6 +211,19 @@ export default function WastePredictionForm() {
               <MenuItem value="Physicum"><b>Physicum</b></MenuItem>
               <MenuItem value="Exactum"><b>Exactum</b></MenuItem>
             </Select>
+          </FormControl>
+
+          <FormControl fullWidth variant="outlined" sx={{ marginBottom: 4 }}>
+
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+              minDate={minSelectableDate} 
+              shouldDisableDate={disableWeekends} 
+              value={selectedDate}
+              onChange={handleDateChange}          
+              />
+            </LocalizationProvider>
+
           </FormControl>
 
           <div className="cardinput">

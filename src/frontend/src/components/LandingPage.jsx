@@ -1,6 +1,4 @@
 
-import React, { useState } from 'react';
-
 import vegetables from '../img/vegetables.jpg';
 
 

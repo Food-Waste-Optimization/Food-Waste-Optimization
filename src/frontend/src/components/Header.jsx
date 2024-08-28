@@ -1,5 +1,4 @@
 
-import React, { useState } from 'react';
 
 import logopeople from '../img/logo_untanglingpeopleflow.png';
 import logofood from '../img/logo_foodwaste.png';
