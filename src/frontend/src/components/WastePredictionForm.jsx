@@ -308,7 +308,7 @@ export default function WastePredictionForm() {
                   plugins: {
                     title: {
                       display: true,
-                      text: "Number of planned meals vs predicted receipts",
+                      text: "Planned meals vs predicted receipts",
                     },
                     legend: {
                       display: false,
@@ -329,7 +329,7 @@ export default function WastePredictionForm() {
             <div className="cardoutput">
               <Bar
               data={{
-                labels: ['Predicted carbon emissions (kg CO2e)'],
+                labels: ['Carbon emissions (kg CO2e)'],
                 datasets: [
                   {
                     label: "",
@@ -365,7 +365,7 @@ export default function WastePredictionForm() {
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Predicted customer waste (kg)', 'Predicted kitchen waste (kg)'],
+                  labels: ['Customer waste (kg)', 'Kitchen waste (kg)'],
                   datasets: [
                     {
                       label: "",
@@ -405,7 +405,7 @@ export default function WastePredictionForm() {
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Predicted waste per customer (g)'],
+                  labels: ['Waste per customer (g)'],
                   datasets: [
                     {
                       label: "",

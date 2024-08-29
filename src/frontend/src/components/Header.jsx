@@ -9,8 +9,8 @@ const Header = () => {
   
     <div className="header">
         
-        <img src={logopeople} width={200}></img>
-        <img src={logofood} width={120}></img>
+        <img src={logopeople} style={{ width: '12%', height: 'auto' }}></img>
+        <img src={logofood} style={{ width: '7%', height: 'auto' }}></img>
         <div class="title">
             <h2>Unicafe food waste optimization</h2>
             <h3>AI assisted model to forecast food consumption in YLVA restaurants</h3>
