@@ -317,7 +317,7 @@ export default function WastePredictionForm() {
                   scales: {
                     y: {
                       min: 0,
-                      max: 800,
+                      max: 1500,
                     },
                   },
                 }}
