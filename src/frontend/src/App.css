@@ -2,9 +2,9 @@
   width: 100%;
   background: linear-gradient(73deg, rgba(211, 233, 191, 1) 76%,rgba(255, 246, 235, 1)
   100%);
-  padding-left: 40px;
-  padding-right: 40px;
-  padding-top: 20px;
+  padding-left: 3rem;
+  padding-right: 3rem;
+  padding-top: 1rem;
   padding-bottom: 300px;
   font-size: 16px;
   font-weight: bold;
@@ -56,9 +56,7 @@ img {
 .containergap {
   display: flex;
   flex-wrap: wrap;
-  padding-top: 20px;
-  gap: 100px;
- 
+  gap: 20px;
 }
 
 .instructions {
@@ -66,13 +64,13 @@ img {
 }
 
 .instructionsimage {
-  width:60%;
+  width: 50%;
 }
 
 .cardoccupancy {
-  flex: 1 1 55%; 
-  max-width: 55%; 
-  height: 500px;
+  flex: 1 1 45%; 
+  max-width: 45%; 
+  height: 450px;
   border-radius: 5px;
   vertical-align: top;
   padding: 30px;
@@ -86,17 +84,16 @@ img {
 .buttons {
   flex: 1 1 100%; 
   max-width: 100%; 
-  padding-top: 45px;
+  padding-top: 25px;
 }
 
 .buttonsrow {
   display: flex;
   flex-wrap: wrap;
-  padding-bottom: 40px;
+  padding-bottom: 25px;
   gap: 10px; 
 
 }
-
 
 .container {
   display: flex;
@@ -105,6 +102,7 @@ img {
 .chartswrapper {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
 }
 
 .cardui {
