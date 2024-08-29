@@ -285,21 +285,21 @@ export default function WastePredictionForm() {
 
         <div class="chartswrapper">
 
-          {chartData.wasteFromCustomers && (
+        {chartData.receipts && (
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Customer waste (kg)', 'Kitchen waste (kg)'],
+                  labels: ['Planned meals', 'Predicted receipts'],
                   datasets: [
                     {
                       label: "",
                       data: [
-                        chartData.wasteFromCustomers[0],
-                        chartData.wasteFromKitchen[0]
+                        ([values.chicken + values.fish + values.meat + values.vegan + values.vegetarian])[0],
+                        chartData.receipts[0],
                       ],
                       backgroundColor: [
-                        "#eec591",
-                        "#9dd4dd",
+                        "#d3e9bf",
+                        "#155C2C",
                       ],
                     },
                   ],
@@ -308,75 +308,7 @@ export default function WastePredictionForm() {
                   plugins: {
                     title: {
                       display: true,
-                      text: "Waste per type (in kilograms)",
-                    },
-                    legend: {
-                      display: false,
-                    },
-                  },
-                  scales: {
-                    y: {
-                      min: 0,
-                      max: 60,
-                    },
-                  },
-                }}
-              />
-            </div>
-          )}
-
-          {chartData.wastePerCustomer && (
-            <div className="cardoutput">
-              <Bar
-                data={{
-                  labels: ['Waste per customer (g)'],
-                  datasets: [
-                    {
-                      label: "",
-                      data: chartData.wastePerCustomer,
-                      backgroundColor: ["#c9a8eb"],
-                    },
-                  ],
-                }}
-                options={{
-                  plugins: {
-                    title: {
-                      display: true,
-                      text: "Waste per customer (in grams)",
-                    },
-                    legend: {
-                      display: false,
-                    },
-                  },
-                  scales: {
-                    y: {
-                      min: 0,
-                      max: 300,
-                    },
-                  },
-                }}
-              />
-            </div>
-          )}
-
-          {chartData.receipts && (
-            <div className="cardoutput">
-              <Bar
-                data={{
-                  labels: ['Number of receipts'],
-                  datasets: [
-                    {
-                      label: "",
-                      data: chartData.receipts,
-                      backgroundColor: ["#155C2C"],
-                    },
-                  ],
-                }}
-                options={{
-                  plugins: {
-                    title: {
-                      display: true,
-                      text: "Number of receipts",
+                      text: "Number of planned meals vs predicted receipts",
                     },
                     legend: {
                       display: false,
@@ -397,7 +329,7 @@ export default function WastePredictionForm() {
             <div className="cardoutput">
               <Bar
               data={{
-                labels: ['Carbon emissions (kg CO2e)'],
+                labels: ['Predicted carbon emissions (kg CO2e)'],
                 datasets: [
                   {
                     label: "",
@@ -412,7 +344,7 @@ export default function WastePredictionForm() {
                 plugins: {
                   title: {
                     display: true,
-                    text: "Carbon emissions (in kg CO2e)",
+                    text: "Predicted carbon emissions (in kg CO2e)",
                   },
                   legend: {
                     display: false,
@@ -427,7 +359,81 @@ export default function WastePredictionForm() {
               }}
             />
             </div>
-          )}        
+          )}     
+
+          {chartData.wasteFromCustomers && (
+            <div className="cardoutput">
+              <Bar
+                data={{
+                  labels: ['Predicted customer waste (kg)', 'Predicted kitchen waste (kg)'],
+                  datasets: [
+                    {
+                      label: "",
+                      data: [
+                        chartData.wasteFromCustomers[0],
+                        chartData.wasteFromKitchen[0]
+                      ],
+                      backgroundColor: [
+                        "#eec591",
+                        "#9dd4dd",
+                      ],
+                    },
+                  ],
+                }}
+                options={{
+                  plugins: {
+                    title: {
+                      display: true,
+                      text: "Predicted waste per type (in kilograms)",
+                    },
+                    legend: {
+                      display: false,
+                    },
+                  },
+                  scales: {
+                    y: {
+                      min: 0,
+                      max: 60,
+                    },
+                  },
+                }}
+              />
+            </div>
+          )}
+
+          {chartData.wastePerCustomer && (
+            <div className="cardoutput">
+              <Bar
+                data={{
+                  labels: ['Predicted waste per customer (g)'],
+                  datasets: [
+                    {
+                      label: "",
+                      data: chartData.wastePerCustomer,
+                      backgroundColor: ["#c9a8eb"],
+                    },
+                  ],
+                }}
+                options={{
+                  plugins: {
+                    title: {
+                      display: true,
+                      text: "Predicted waste per customer (in grams)",
+                    },
+                    legend: {
+                      display: false,
+                    },
+                  },
+                  scales: {
+                    y: {
+                      min: 0,
+                      max: 300,
+                    },
+                  },
+                }}
+              />
+            </div>
+          )}
 
           </div> 
 
