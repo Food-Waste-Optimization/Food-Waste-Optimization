@@ -40,6 +40,7 @@ transformers = "^4.44.1"
 torch = "^2.4.0"
 nbformat = "^5.10.4"
 levenshtein = "^0.25.1"
+pyqt5 = "^5.15.11"
 
 [build-system]
 requires = ["poetry-core"]
