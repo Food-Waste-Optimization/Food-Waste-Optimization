@@ -13,6 +13,22 @@ class Paths:
     def fact(name: str = "fact.xlsx"):
         return Paths.DIR_PROCESSED / name
 
+    @staticmethod
+    def pred_biowaste(name: str = "pred_biowaste.xlsx"):
+        return Paths.DIR_PROCESSED / name
+
+    @staticmethod
+    def pred_co2(name: str = "pred_co2.xlsx"):
+        return Paths.DIR_PROCESSED / name
+
+    @staticmethod
+    def pred_n_pcs_per_dish(name: str = "pred_n_pcs_per_dish.xlsx"):
+        return Paths.DIR_PROCESSED / name
+
+    @staticmethod
+    def pred_n_pcs_whole(name: str = "pred_n_pcs_whole.xlsx"):
+        return Paths.DIR_PROCESSED / name
+
     ##############################################################
     # Processed dim tables
     ##############################################################
