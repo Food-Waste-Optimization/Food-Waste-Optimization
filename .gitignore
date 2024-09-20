@@ -1,24 +1,17 @@
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
+
 .env
-__pycache__
-.coverag*
-htmlcov
-*.pyc
-*.pyo
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.cache
-nosetests.xml
-__init__.py
 
-basic_mvp_data/
-*.xlsx
-*.csv
-
-*.savd())
-
-src/data/
-.*
-data
-node_modules/
-src/frontend/ReactFrontEnd/
+experiments/
