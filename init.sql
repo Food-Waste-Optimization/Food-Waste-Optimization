@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS pieces_per_dish (
 
 
 CREATE TABLE IF NOT EXISTS pieces_whole (
-    ,date       date    NOT NULL
+    date        date    NOT NULL
     ,restaurant TEXT    NOT NULL
     ,pcs        float   not null
 
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS co2 (
 );
 
 CREATE TABLE IF NOT EXISTS menu (
-    ,date                   DATE    NOT NULL
+    date                    DATE    NOT NULL
     ,restaurant             TEXT    not null
     ,dish_1                 INT     NOT NULL
     ,dish_2                 INT     NOT NULL
