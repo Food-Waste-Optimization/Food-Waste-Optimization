@@ -23,6 +23,7 @@ skl2onnx = "^1.17.0"
 onnxruntime = "^1.18.1"
 seaborn = "^0.13.2"
 psycopg = "^3.2.2"
+psycopg-binary = "^3.2.2"
 
 
 
