@@ -33,6 +33,10 @@ class Paths:
     # Processed dim tables
     ##############################################################
     @staticmethod
+    def dim_dishes(name: str = "dim_dishes.xlsx"):
+        return Paths.DIR_PROCESSED / name
+
+    @staticmethod
     def dim_lucnhes(name: str = "dim_lunches.xlsx"):
         return Paths.DIR_PROCESSED / name
 
