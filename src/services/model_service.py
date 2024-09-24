@@ -1,4 +1,5 @@
 """Creates ModelService class that allows requests to AI models."""
+
 import io
 from pathlib import Path
 
@@ -9,33 +10,31 @@ import pandas as pd
 import seaborn as sns
 from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
-from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
-
-from ..repositories.data_repository import data_repo
 
 # run with "poetry run python -m src.services.model_service"
 
-RESTAURANTS = ['Chemicum', 'Physicum', 'Exactum']
-NUM_TIMESTAMP_PER_DAY = 9   # Since each day, the predictions' timestamp are 10 AM, 11 AM... 15 PM
-path_root_trained_model = Path("trained_models")
+RESTAURANTS = ["Chemicum", "Physicum", "Exactum"]
+NUM_TIMESTAMP_PER_DAY = (
+    9  # Since each day, the predictions' timestamp are 10 AM, 11 AM... 15 PM
+)
+
 
 class ModelService:
-    """Class for handling the connection
-    between models, data and the app.
-    """
+    """Class for handling the connection between models, data and the app."""
+
+    PATH_ROOT_TRAINED_MODEL = Path("trained_models")
 
     def __init__(self):
         # data is fetched every time init is run, this should not happen\
         self.models = {
-            'receipt': {},
-            'biowaste': {},
-            'occupancy': {},
-            'meal': {},
-
-            'receipt_per_day': None,
-            'biowaste_from_meal': {},
-            'co2_from_meal': {},
+            "receipt": {},
+            "biowaste": {},
+            "occupancy": {},
+            "meal": {},
+            "receipt_per_day": None,
+            "biowaste_from_meal": {},
+            "co2_from_meal": {},
         }
         self._load_receipt_forecaster()
         self._load_biowaste_forecaster()
@@ -46,8 +45,8 @@ class ModelService:
         self._load_biowaste_from_meal_forecaster()
         self._load_co2_from_meal_forecaster()
 
-        plt.style.use('seaborn-v0_8')
-        plt.rcParams.update({'font.size': 8})
+        plt.style.use("seaborn-v0_8")
+        plt.rcParams.update({"font.size": 8})
 
         # self.data = data_repo.get_model_fit_data()
         # self.model = NeuralNetwork(
@@ -58,78 +57,84 @@ class ModelService:
 
         model_name = "receipt"
         add_encoders = {
-            'cyclic': {
-                'future': ['hour', 'dayofweek']
-            },
-            'datetime_attribute': {'future': ['hour', 'dayofweek']},
+            "cyclic": {"future": ["hour", "dayofweek"]},
+            "datetime_attribute": {"future": ["hour", "dayofweek"]},
         }
 
         for restaurant in RESTAURANTS:
-            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
-            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(path_model)
-                
+            path_model = (
+                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
+            )
+            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(
+                path_model
+            )
+
     def _load_biowaste_forecaster(self):
         logger.info("Load trained biowaste forecasting models for 3 restaurants")
 
         add_encoders = {
-            'cyclic': {
-                'past': ['dayofweek']
-            },
-            'datetime_attribute': {'past': ['dayofweek']},
+            "cyclic": {"past": ["dayofweek"]},
+            "datetime_attribute": {"past": ["dayofweek"]},
         }
         model_name = "biowaste"
 
         for restaurant in RESTAURANTS:
-            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
-            self.models[model_name][restaurant] = LinearRegressionModel(lags=5, lags_past_covariates=5, add_encoders=add_encoders).load(path_model)
+            path_model = (
+                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
+            )
+            self.models[model_name][restaurant] = LinearRegressionModel(
+                lags=5, lags_past_covariates=5, add_encoders=add_encoders
+            ).load(path_model)
 
     def _load_occupancy_forecaster(self):
         logger.info("Load trained occupancy forecasting models for 3 restaurants")
 
         model_name = "occupancy"
         add_encoders = {
-            'cyclic': {
-                'future': ['hour', 'dayofweek']
-            },
-            'datetime_attribute': {'future': ['hour', 'dayofweek']},
+            "cyclic": {"future": ["hour", "dayofweek"]},
+            "datetime_attribute": {"future": ["hour", "dayofweek"]},
         }
 
         for restaurant in RESTAURANTS:
-            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
-            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(path_model)
+            path_model = (
+                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
+            )
+            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(
+                path_model
+            )
 
     def _load_meal_forecaster(self):
         logger.info("Load trained meal forecasting models for 3 restaurants")
 
         add_encoders = {
-            'cyclic': {
-                'past': ['dayofweek']
-            },
-            'datetime_attribute': {'past': ['dayofweek']},
+            "cyclic": {"past": ["dayofweek"]},
+            "datetime_attribute": {"past": ["dayofweek"]},
         }
         model_name = "meal"
 
         for restaurant in RESTAURANTS:
-            path_model = path_root_trained_model / model_name / f"{restaurant}.pt"
-            self.models[model_name][restaurant] = LinearRegressionModel(lags=4, lags_past_covariates=5, add_encoders=add_encoders).load(path_model)
+            path_model = (
+                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
+            )
+            self.models[model_name][restaurant] = LinearRegressionModel(
+                lags=4, lags_past_covariates=5, add_encoders=add_encoders
+            ).load(path_model)
 
     def _load_receipt_byday_forecaster(self):
         logger.info("Load trained receipt forecasting model by day")
 
         add_encoders = {
-            'cyclic': {
-                'future': ['dayofweek', 'day', 'month']
-            },
-            'datetime_attribute': {'future': ['dayofweek', 'day', 'month']},
+            "cyclic": {"future": ["dayofweek", "day", "month"]},
+            "datetime_attribute": {"future": ["dayofweek", "day", "month"]},
         }
         path_model = Path("trained_models/receipt/Jul_23_LightBGM.pt")
 
-        self.models['receipt_per_day'] = LightGBMModel(
+        self.models["receipt_per_day"] = LightGBMModel(
             lags=7,
             lags_future_covariates=[0],
             add_encoders=add_encoders,
             output_chunk_length=1,
-            verbose=-1
+            verbose=-1,
         ).load(path_model)
 
     def _load_biowaste_from_meal_forecaster(self):
@@ -138,7 +143,9 @@ class ModelService:
         for restaurant in RESTAURANTS:
             path_model = Path(f"trained_models/biowaste/Jul24_Lasso_{restaurant}.onnx")
 
-            self.models['biowaste_from_meal'][restaurant] = rt.InferenceSession(path_model, providers=["CPUExecutionProvider"])
+            self.models["biowaste_from_meal"][restaurant] = rt.InferenceSession(
+                path_model, providers=["CPUExecutionProvider"]
+            )
 
     def _load_co2_from_meal_forecaster(self):
         logger.info("Load trained co2 from meal forecasting models by restaurant")
@@ -150,141 +157,15 @@ class ModelService:
 
             regressor = XGBRegressor()
             regressor.load_model(path_model)
-            self.models['co2_from_meal'][restaurant] = regressor
-
+            self.models["co2_from_meal"][restaurant] = regressor
 
     def _post_process(self, prediction):
         if prediction <= 0:
-            prediction = 0.
+            prediction = 0.0
 
         prediction = round(prediction, 2)
 
         return prediction
-
-    def __predict(self, weekday: int, meal_plan: list):
-        """This function will predict sold meals
-        for a specific day and meal plan
-        Args:
-            weekday (int): day of prediction, 0 - monday, 1 - tuesday etc.
-            meal_plan (list): dishes to be sold on that day
-        Returns:
-            int: number of sold meals
-        """
-        try:
-            return self.model.predict(weekday=weekday, dishes=meal_plan)
-        except NotFittedError:
-            print("You must load or fit model first")
-
-    def test_model(self):
-        """First will try to load model, if unsuccessful,
-        will fit and save a model. Then will run tests
-
-        prints:
-        Mean squared error
-        Mean absolute error
-        R^2 value
-        """
-        try:
-            self.load_model()
-        except NotFittedError as err:
-            # no model to load
-            print("Model could not be loaded, fitting instead:", err)
-            self.fit_and_save()
-        mse, mae, r2 = self.model.test()
-
-        print(
-            f"Mean squared error: {mse}\nMean absolute error: {mae}\nR^2: {r2}")
-
-    def fit_and_save(self):
-        """Will fit the model and the save into a file.
-        If unsuccessful, will give error.
-        """
-        try:
-            print("Fitting model")
-            self.model.fit_and_save()
-            print("Model fitted and saved")
-        except Exception as err: # pylint: disable=W0718
-            print("Model could not be fitted:", err)
-
-    def load_model(self):
-        """This function will load the model. First
-        try to load a model and if no model is found,
-        will give error.
-        """
-        try:
-            self.model.load_model()
-            print("Model loaded")
-        except Exception as err: # pylint: disable=W0718
-            print("Model could not be loaded:", err)
-
-    def _predict_waste_by_week(self):
-        """Predicts food waste for a week
-        based on average food waste per customer
-        and estimated amount of customers.
-
-        Saves prediction to permanent storage
-        and should be fetched from there.
-        """
-        waste = data_repo.get_avg_meals_waste_ratio()
-        for waste_type in waste:
-            for restaurant, weight in waste[waste_type].items():
-                waste[waste_type][restaurant] = list(
-                    map(lambda i: i*weight, self._predict_next_week()))
-                
-        data_repo.save_latest_biowaste_prediction(waste)
-
-    def _predict_next_week(self, num_of_days: int, menu_plan: list):
-        """Return a list of predictions
-        for the next week from current date.
-
-        num_of_days represents the length of week,
-        or, how many days the restaurant is open.
-
-        menu_plan represents the menus for the days.
-        It should be a list of lists. The main list for each day
-        and inner list for each dish.
-
-        Data struct:
-            list of int: list of predictions where index is offset from current day
-
-        Is saved to permanent storage.
-        """
-        day_offset = list(range(0, num_of_days))
-        pred = list(map(self.__predict, day_offset, menu_plan))
-        data_repo.save_latest_weekly_prediction(pred)
-    
-    def get_latest_weekly_prediction(self):
-        """Will use data_repository to fetch the latest
-        prediction of sold meals stored in a desired place. Currently
-        in a database. Is necessary to allow faster load
-        times for the website.
-
-        This should be used by the routes function.
-        """
-        return data_repo.get_latest_weekly_prediction()
-
-    def get_biowaste_prediction(self):
-        """Will use data_repository to fetch the latest
-        biowaste prediction stored in a desired place. Currently
-        in a database. Is necessary to allow faster load
-        times for the website.
-        
-        This should be used by the routes function.
-        """
-        return data_repo.get_latest_biowaste_prediction()
-
-    def get_occupancy_prediction(self):
-        """Will use data_repository to fetch the latest
-        prediction of occupancy stored in a desired place. Currently
-        in a database. Is necessary to allow faster load
-        times for the website.
-        
-        This should be used by the routes function.
-        """
-        return data_repo.get_latest_occupancy_prediction()
-    
-
-
 
     def forecast_receipt(self, num_of_days: int = 5) -> list:
         """Forecast the number of receipts `num_of_days` ahead
@@ -295,50 +176,58 @@ class ModelService:
         Returns:
             list: forecasted receipt quantity per date per restaurant
         """
-        
+
         predictions = pd.DataFrame()
 
         # Forecast the future
         for restaurant in RESTAURANTS:
-            pred = self.models['receipt'][restaurant].predict(num_of_days * NUM_TIMESTAMP_PER_DAY)
+            pred = self.models["receipt"][restaurant].predict(
+                num_of_days * NUM_TIMESTAMP_PER_DAY
+            )
 
             if len(predictions) == 0:
-                predictions['datetime'] = pred.time_index
+                predictions["datetime"] = pred.time_index
 
-            predictions.loc[:, restaurant] = [self._post_process(x) for x in pred.values().squeeze().tolist()]
+            predictions.loc[:, restaurant] = [
+                self._post_process(x) for x in pred.values().squeeze().tolist()
+            ]
 
         # Post-process
-        predictions['datetime'] = predictions['datetime'].dt.strftime(r"%Y-%m-%d %H:%M:%S")
+        predictions["datetime"] = predictions["datetime"].dt.strftime(
+            r"%Y-%m-%d %H:%M:%S"
+        )
 
         # Return
-        ret = predictions.to_dict('records')
+        ret = predictions.to_dict("records")
 
         return ret
-    
-    def forecast_biowaste(self, num_of_days: int = 5):        
+
+    def forecast_biowaste(self, num_of_days: int = 5):
         predictions = {}
 
         # Forecast the future
         for restaurant in RESTAURANTS:
-            pred = self.models['biowaste'][restaurant].predict(num_of_days)
+            pred = self.models["biowaste"][restaurant].predict(num_of_days)
 
             df_pred = pred.pd_dataframe().reset_index()
-            df_pred['date'] = df_pred['date'].dt.strftime(r"%Y-%m-%d")
+            df_pred["date"] = df_pred["date"].dt.strftime(r"%Y-%m-%d")
 
             for row in df_pred.itertuples():
                 if row.date not in predictions:
-                    predictions[row.date] = {
-                        'date': row.date
-                    }
+                    predictions[row.date] = {"date": row.date}
 
                 predictions[row.date] = {
                     **predictions[row.date],
                     restaurant: {
-                        'amnt_waste_customer': self._post_process(row.amnt_waste_customer),
-                        'amnt_waste_coffee': self._post_process(row.amnt_waste_coffee),
-                        'amnt_waste_kitchen': self._post_process(row.amnt_waste_kitchen),
-                        'amnt_waste_hall': self._post_process(row.amnt_waste_hall),
-                    }
+                        "amnt_waste_customer": self._post_process(
+                            row.amnt_waste_customer
+                        ),
+                        "amnt_waste_coffee": self._post_process(row.amnt_waste_coffee),
+                        "amnt_waste_kitchen": self._post_process(
+                            row.amnt_waste_kitchen
+                        ),
+                        "amnt_waste_hall": self._post_process(row.amnt_waste_hall),
+                    },
                 }
 
         # Return
@@ -357,17 +246,19 @@ class ModelService:
         predictions = {}
         for restaurant in RESTAURANTS:
             # Forecast
-            pred = self.models['occupancy'][restaurant].predict(num_timesteps)
+            pred = self.models["occupancy"][restaurant].predict(num_timesteps)
 
             # Post-process forecasted data
             df_pred = pred.pd_dataframe().reset_index()
-            df_pred['datetime'] = df_pred['datetime'].dt.strftime(r"%Y-%m-%d %H:%M:%S")
+            df_pred["datetime"] = df_pred["datetime"].dt.strftime(r"%Y-%m-%d %H:%M:%S")
 
             for row in df_pred.itertuples():
                 if row.datetime not in predictions:
-                    predictions[row.datetime] = {'datetime': row.datetime}
+                    predictions[row.datetime] = {"datetime": row.datetime}
 
-                predictions[row.datetime][restaurant] = self._post_process(row.num_customer_in)
+                predictions[row.datetime][restaurant] = self._post_process(
+                    row.num_customer_in
+                )
 
         ret = list(predictions.values())
 
@@ -378,27 +269,25 @@ class ModelService:
 
         # Forecast the future
         for restaurant in RESTAURANTS:
-            pred = self.models['meal'][restaurant].predict(num_of_days)
+            pred = self.models["meal"][restaurant].predict(num_of_days)
 
             df_pred = pred.pd_dataframe().reset_index()
-            df_pred['date'] = df_pred['date'].dt.strftime(r"%Y-%m-%d")
+            df_pred["date"] = df_pred["date"].dt.strftime(r"%Y-%m-%d")
 
             for row in df_pred.itertuples():
                 if row.date not in predictions:
-                    predictions[row.date] = {
-                        'date': row.date
-                    }
+                    predictions[row.date] = {"date": row.date}
 
                 predictions[row.date] = {
                     **predictions[row.date],
                     restaurant: {
-                        'num_fish': self._post_process(row.num_fish),
-                        'num_chicken': self._post_process(row.num_chicken),
-                        'num_vegetable': self._post_process(row.num_vegetable),
-                        'num_meat': self._post_process(row.num_meat),
-                        'num_NotMapped': self._post_process(row.num_NotMapped),
-                        'num_vegan': self._post_process(row.num_vegan),
-                    }
+                        "num_fish": self._post_process(row.num_fish),
+                        "num_chicken": self._post_process(row.num_chicken),
+                        "num_vegetable": self._post_process(row.num_vegetable),
+                        "num_meat": self._post_process(row.num_meat),
+                        "num_NotMapped": self._post_process(row.num_NotMapped),
+                        "num_vegan": self._post_process(row.num_vegan),
+                    },
                 }
 
         # Return
@@ -417,73 +306,82 @@ class ModelService:
         return_type: str,
     ):
         # Predict no. receipts next day
-        out = self.models['receipt_per_day'].predict(1)
-        date = out.time_index[0].strftime('%b %d, %Y')
-        n_rpts = out[f"{restaurant}_rcpts"] .data_array().to_numpy().squeeze().astype(np.int32).item()
+        out = self.models["receipt_per_day"].predict(1)
+        date = out.time_index[0].strftime("%b %d, %Y")
+        n_rpts = (
+            out[f"{restaurant}_rcpts"]
+            .data_array()
+            .to_numpy()
+            .squeeze()
+            .astype(np.int32)
+            .item()
+        )
 
         # Predict waste
-        X_predict = pd.DataFrame({
-            'fish': [num_fish],
-            'chicken': [num_chicken],
-            'vegetarian': [num_vegetarian],
-            'meat': [num_meat],
-            'vegan': [num_vegan]
-        })
+        X_predict = pd.DataFrame(
+            {
+                "fish": [num_fish],
+                "chicken": [num_chicken],
+                "vegetarian": [num_vegetarian],
+                "meat": [num_meat],
+                "vegan": [num_vegan],
+            }
+        )
 
-        sess = self.models['biowaste_from_meal'][restaurant]
+        sess = self.models["biowaste_from_meal"][restaurant]
         input_name = sess.get_inputs()[0].name
         label_name = sess.get_outputs()[0].name
         pred_onx = sess.run([label_name], {input_name: X_predict.to_numpy()})[0]
 
         # Calculate the waste per customer
         amnt_waste_per_customer = pred_onx.sum() * 1000 / n_rpts
-        
+
         ret = None
         if return_type == "image":
             # Plot
             fig = plt.figure(figsize=(10, 8))
-            fig.suptitle(f"Forecast in date: {date}", fontweight='bold', fontsize=14)
+            fig.suptitle(f"Forecast in date: {date}", fontweight="bold", fontsize=14)
 
             ax = fig.add_subplot(221)
             sns.barplot(X_predict, ax=ax)
             for i, val in enumerate(X_predict.to_numpy().squeeze().astype(np.int32)):
-                plt.text(i, val+2, val, ha = 'center', fontsize=11)
-            ax.set_title("Input: number of meals per type", fontweight='bold')
+                plt.text(i, val + 2, val, ha="center", fontsize=11)
+            ax.set_title("Input: number of meals per type", fontweight="bold")
 
             ax = fig.add_subplot(222)
-            sns.barplot(x=['Customer', 'Kitchen'], y=pred_onx.squeeze(), ax=ax)
+            sns.barplot(x=["Customer", "Kitchen"], y=pred_onx.squeeze(), ax=ax)
             for i, val in enumerate(pred_onx.squeeze()):
-                plt.text(i, val+0.2, f"{val:.2f}", ha = 'center', fontsize=11)
-            ax.set_title("Predicted amount of waste per type", fontweight='bold')
+                plt.text(i, val + 0.2, f"{val:.2f}", ha="center", fontsize=11)
+            ax.set_title("Predicted amount of waste per type", fontweight="bold")
 
             ax = fig.add_subplot(223)
-            sns.barplot(x=['Num. receipts'], y=[n_rpts], ax=ax)
-            ax.set_title("Forecasted number of receipts (POS)", fontweight='bold')
+            sns.barplot(x=["Num. receipts"], y=[n_rpts], ax=ax)
+            ax.set_title("Forecasted number of receipts (POS)", fontweight="bold")
 
             ax = fig.add_subplot(224)
-            sns.barplot(x=['Amount'], y=[amnt_waste_per_customer], ax=ax)
-            ax.axhline(y = 40, color = 'r', linestyle = '-.')
-            ax.set_title("Amnt. waste per customer (in gram)", fontweight='bold')
+            sns.barplot(x=["Amount"], y=[amnt_waste_per_customer], ax=ax)
+            ax.axhline(y=40, color="r", linestyle="-.")
+            ax.set_title("Amnt. waste per customer (in gram)", fontweight="bold")
 
             # Export image
             buf = io.BytesIO()
-            fig.savefig(buf, format='png', bbox_inches='tight')
+            fig.savefig(buf, format="png", bbox_inches="tight")
             buf.seek(0)
 
             ret = buf.read()
         elif return_type == "numeric":
             ret = {
-                'date': out.time_index[0].strftime('%Y-%m-%d'),
-                'predicted_waste_customer': pred_onx.squeeze()[0].item(),
-                'predicted_waste_kitchen': pred_onx.squeeze()[1].item(),
-                'predicted_num_receipts': n_rpts,
-                'predicted_waste_per_customer': amnt_waste_per_customer.item()
+                "date": out.time_index[0].strftime("%Y-%m-%d"),
+                "predicted_waste_customer": pred_onx.squeeze()[0].item(),
+                "predicted_waste_kitchen": pred_onx.squeeze()[1].item(),
+                "predicted_num_receipts": n_rpts,
+                "predicted_waste_per_customer": amnt_waste_per_customer.item(),
             }
         else:
             raise NotImplementedError
 
         return ret
-    
+
     def forecast_co2_with_meal(
         self,
         restaurant: str,
@@ -495,29 +393,24 @@ class ModelService:
     ):
         # Predict co2
         X_predict = np.array(
-            [[
-                num_fish,
-                num_chicken,
-                num_vegetarian,
-                num_meat,
-                num_vegan,
-            ]]
-            , dtype=np.float32
+            [
+                [
+                    num_fish,
+                    num_chicken,
+                    num_vegetarian,
+                    num_meat,
+                    num_vegan,
+                ]
+            ],
+            dtype=np.float32,
         )
 
-        model = self.models['co2_from_meal'][restaurant]
-        
+        model = self.models["co2_from_meal"][restaurant]
+
         pred_co2 = model.predict(X_predict)
 
-
         ret = {
-            'predicted_co2': pred_co2.squeeze().item(),
+            "predicted_co2": pred_co2.squeeze().item(),
         }
 
         return ret
-
-if __name__ == "__main__":
-    model = ModelService()
-    model.fit_and_save()
-    model.test_model()
-    
