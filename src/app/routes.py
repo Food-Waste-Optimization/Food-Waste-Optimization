@@ -1,10 +1,10 @@
 import traceback
 
+import pandas as pd
 from flask import Blueprint, jsonify, make_response, render_template, request
+from pandas._libs.tslibs.parsing import DateParseError
 
-from src.services import model_service
-
-# from ..app.app import app
+from src.services import db, model_service
 
 blueprint = Blueprint("fwo", __name__)
 
@@ -139,7 +139,6 @@ def forecast_meal():
 
 
 @blueprint.route("/forecast/biowaste_from_meals")
-@blueprint.route("/forecast/biowaste_from_meals")
 def biowaste_from_meals():
     resp = None
 
@@ -239,5 +238,71 @@ def co2_from_meals():
             print(tb)
 
             resp = make_response(f"Error: {e}", 500)
+
+    return resp
+
+
+# == APIs for Recommendation ===================================================================================================================
+@blueprint.route("/recommendation")
+def recommend_menu():
+    resp = None
+
+    # Parse necessary arguments and check
+    restaurant = request.args.get("restaurant", None)
+    if (
+        restaurant is None
+        or not isinstance(restaurant, str)
+        or restaurant not in ["Chemicum", "Physicum", "Exactum"]
+    ):
+        resp = make_response("Invalid query argument: 'restaurant'", 400)
+
+    date = request.args.get("date", None)
+    if date is None or not isinstance(date, str):
+        resp = make_response("Invalid query argument: 'date'", 400)
+
+    try:
+        assert date
+        pd.to_datetime(date)
+    except DateParseError:
+        resp = make_response("Invalid query argument: 'date'", 400)
+
+    if resp is None:
+        # Fetch necessary data
+        menus = db.fetch("menu", date=date, restaurant=restaurant)
+        biowaste = db.fetch("biowaste")
+        co2 = db.fetch("co2")
+        pieces_per_dish = db.fetch("pieces_per_dish", date=date)
+        pieces_whole = db.fetch("pieces_whole", date=date, restaurant=restaurant)
+        dishes = db.fetch("dishes")
+
+        # Make up output
+        buff = {}
+
+        buff["dishes_info"] = (
+            dishes.merge(co2, on="meal_id", how="inner")
+            .merge(biowaste, on="meal_id", how="inner")
+            .merge(pieces_per_dish, on="meal_id", how="inner")
+            .drop(columns=["date"])
+            .rename(columns={"pcs": "pcs_per_dish"})
+            .to_dict(orient="records")
+        )
+
+        cols = [
+            "dish_1",
+            "dish_2",
+            "dish_3",
+            "dish_4",
+            "total_co2",
+            "total_waste",
+            "total_pcs_from_dishes",
+            "co2_per_customer",
+            "waste_per_customer",
+        ]
+        buff["menus_info"] = menus[cols].to_dict(orient="records")
+
+        buff["pred_n_pcs_whole"] = pieces_whole["pcs"].item()
+
+        resp = make_response(buff, 200)
+        resp.headers.set("Content-Type", "application/json")
 
     return resp

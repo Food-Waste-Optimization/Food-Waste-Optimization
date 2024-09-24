@@ -12,8 +12,6 @@ from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
 from xgboost import XGBRegressor
 
-# run with "poetry run python -m src.services.model_service"
-
 RESTAURANTS = ["Chemicum", "Physicum", "Exactum"]
 NUM_TIMESTAMP_PER_DAY = (
     9  # Since each day, the predictions' timestamp are 10 AM, 11 AM... 15 PM
