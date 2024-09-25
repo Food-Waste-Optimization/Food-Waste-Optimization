@@ -9,6 +9,9 @@ from flask_cors import CORS
 from ..config import set_configuration
 from .routes import blueprint
 
+load_dotenv()
+FLASK_ENV = os.getenv("FLASK_ENV", None)
+
 
 def create_app():
     """Create and configure Flask-app object with CORS-support.
@@ -17,8 +20,12 @@ def create_app():
         Flask: Flask-app object.
     """
 
-    load_dotenv()
-    template_dir = os.path.abspath("src/frontend/dist/")
+    if FLASK_ENV == "development":
+        template_dir = "src/frontend/dist"
+    elif FLASK_ENV == "production":
+        template_dir = "/build/dist"
+    else:
+        raise NotImplementedError()
 
     app = Flask(
         __name__,
