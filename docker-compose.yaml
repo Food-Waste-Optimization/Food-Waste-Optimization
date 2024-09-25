@@ -1,18 +1,13 @@
-version: '3.8'
-
 services:
   fwoapp:
     image: fwoapp
+    container_name: fwoapp
     build: .
     volumes:
-      # set this according to where your data folder located
-      - ${DATA}:/app/src/data/
-      - ${DATA}/.env:/app/.env
+      - ${TRAINED_MODELS}:/trained_models
 
     ports:
-      - 5000:5000
+      - 1000:5000
 
     env_file:
       - .env
-
-    container_name: fwoapp
