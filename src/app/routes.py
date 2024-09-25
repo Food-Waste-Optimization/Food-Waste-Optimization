@@ -159,6 +159,16 @@ def biowaste_from_meals():
     ):
         resp = make_response("Invalid query argument: 'return_type'", 400)
 
+    date = request.args.get("date", None)
+    if date is None or not isinstance(date, str):
+        resp = make_response("Invalid query argument: 'date'", 400)
+
+    try:
+        assert date
+        pd.to_datetime(date)
+    except DateParseError:
+        resp = make_response("Invalid query argument: 'date'", 400)
+
     num_meals = {
         "num_fish": 0,
         "num_chicken": 0,
@@ -178,9 +188,10 @@ def biowaste_from_meals():
     if resp is None:
         try:
             assert restaurant
+            assert date
             assert return_type
             buf = model.forecast_biowaste_with_meal(
-                restaurant=restaurant, **num_meals, return_type=return_type
+                restaurant=restaurant, **num_meals, return_type=return_type, date=date
             )
 
             resp = make_response(buf, 200)
