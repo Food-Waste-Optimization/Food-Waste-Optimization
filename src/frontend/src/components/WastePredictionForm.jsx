@@ -15,6 +15,11 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 
 import dayjs from "dayjs";
 
+let base_api_url = ``;
+
+if (import.meta.env.DEV) base_api_url = "http://localhost:1000";
+else base_api_url = "https://megasense-server.cs.helsinki.fi/fwowebserver";
+
 const initialValues = {
   chicken: 0,
   fish: 0,
@@ -90,8 +95,8 @@ export default function WastePredictionForm() {
 
   const fetchData = async () => {
     const date = selectedDate.format("YYYY-MM-DD");
-    const urlWaste = `http://localhost:1000/forecast/biowaste_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}&return_type=numeric&date=${date}`;
-    const urlCarbonEmissions = `http://localhost:1000/forecast/co2_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}`;
+    const urlWaste = `${base_api_url}/forecast/biowaste_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}&return_type=numeric&date=${date}`;
+    const urlCarbonEmissions = `${base_api_url}/forecast/co2_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}`;
 
     try {
       const responseWaste = await fetch(urlWaste);

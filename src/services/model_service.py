@@ -125,7 +125,7 @@ class ModelService:
             "cyclic": {"future": ["dayofweek", "day", "month"]},
             "datetime_attribute": {"future": ["dayofweek", "day", "month"]},
         }
-        path_model = Path("trained_models/receipt/Jul_23_LightBGM.pt")
+        path_model = ModelService.PATH_ROOT_TRAINED_MODEL / "receipt/Jul_23_LightBGM.pt"
 
         self.models["receipt_per_day"] = LightGBMModel(
             lags=7,

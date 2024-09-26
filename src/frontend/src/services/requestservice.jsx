@@ -2,7 +2,10 @@ import axios from "axios";
 
 // Setting up routes depending on environment:
 
-let base_api_url = `http://127.0.0.1:1000`;
+let base_api_url = ``;
+
+if (import.meta.env.DEV) base_api_url = "http://127.0.0.1:5000";
+else base_api_url = "https://megasense-server.cs.helsinki.fi/fwowebserver";
 
 const dataApi = `${base_api_url}/api/data`;
 
