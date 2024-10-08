@@ -1,21 +1,24 @@
+import { useState } from "react";
 
-import { useState } from 'react';
+import { Bar } from "react-chartjs-2";
 
-import { Bar } from 'react-chartjs-2';
+import Button from "@mui/material/Button";
+import FormControl from "@mui/material/FormControl";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Slider from "@mui/material/Slider";
+import { styled } from "@mui/material/styles";
 
-import Button from '@mui/material/Button';
-import FormControl from '@mui/material/FormControl';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import Slider from '@mui/material/Slider';
-import { styled } from '@mui/material/styles';
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers";
 
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers';
+import dayjs from "dayjs";
 
-import dayjs from 'dayjs';
+let base_api_url = ``;
 
+if (import.meta.env.DEV) base_api_url = "http://localhost:1000";
+else base_api_url = "https://megasense-server.cs.helsinki.fi/fwowebserver";
 
 const initialValues = {
   chicken: 0,
@@ -26,50 +29,50 @@ const initialValues = {
   location: "Chemicum",
 };
 
-const minSelectableDate = dayjs('2024-05-09');
+const minSelectableDate = dayjs("2024-05-09");
 
 const disableWeekends = (date) => {
-  const day = date.day(); 
-  return day === 0 || day === 6; 
+  const day = date.day();
+  return day === 0 || day === 6;
 };
 
 const CustomSlider = styled(Slider)(({ theme }) => ({
-  color: 'black',
+  color: "black",
   height: 4,
-  '& .MuiSlider-thumb': {
+  "& .MuiSlider-thumb": {
     height: 16,
     width: 16,
-    backgroundColor: 'black',
-    border: 'none',
-    '&:focus': {
-      boxShadow: 'none',
+    backgroundColor: "black",
+    border: "none",
+    "&:focus": {
+      boxShadow: "none",
     },
   },
-  '& .MuiSlider-track': {
+  "& .MuiSlider-track": {
     height: 4,
   },
-  '& .MuiSlider-rail': {
+  "& .MuiSlider-rail": {
     height: 4,
   },
-  '& .MuiSlider-valueLabel': {
-    backgroundColor: 'black',
-    color: 'white',
-    borderRadius: '4px',
+  "& .MuiSlider-valueLabel": {
+    backgroundColor: "black",
+    color: "white",
+    borderRadius: "4px",
   },
 }));
 
-const SliderWrapper = styled('div')(({ theme }) => ({
+const SliderWrapper = styled("div")(({ theme }) => ({
   marginBottom: 8,
 }));
 
 export default function WastePredictionForm() {
   const [values, setValues] = useState(initialValues);
-  const [selectedDate, setSelectedDate] = useState(dayjs()); 
+  const [selectedDate, setSelectedDate] = useState(dayjs());
   const [chartData, setChartData] = useState({
     wasteFromCustomers: [0],
     wasteFromKitchen: [0],
     wastePerCustomer: [0],
-    receipts: [0]
+    receipts: [0],
   });
 
   const handleInputChange = (name) => (event, newValue) => {
@@ -91,22 +94,22 @@ export default function WastePredictionForm() {
   };
 
   const fetchData = async () => {
-    const date = selectedDate.format('YYYY-MM-DD'); 
-    const urlWaste = `https://megasense-server.cs.helsinki.fi/fwowebserver/forecast/biowaste_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}&return_type=numeric&date=${date}`;
-    const urlCarbonEmissions = `https://megasense-server.cs.helsinki.fi/fwowebserver/forecast/co2_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}`
+    const date = selectedDate.format("YYYY-MM-DD");
+    const urlWaste = `${base_api_url}/forecast/biowaste_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}&return_type=numeric&date=${date}`;
+    const urlCarbonEmissions = `${base_api_url}/forecast/co2_from_meals?restaurant=${values.location}&num_fish=${values.fish}&num_chicken=${values.chicken}&num_vegetarian=${values.vegetarian}&num_meat=${values.meat}&num_vegan=${values.vegan}`;
 
     try {
       const responseWaste = await fetch(urlWaste);
       const dataWaste = await responseWaste.json();
       const responseCarbonEmissions = await fetch(urlCarbonEmissions);
-      const dataCarbonEmissions= await responseCarbonEmissions.json();
+      const dataCarbonEmissions = await responseCarbonEmissions.json();
 
       setChartData({
         wasteFromCustomers: [dataWaste.predicted_waste_customer],
         wasteFromKitchen: [dataWaste.predicted_waste_kitchen],
         wastePerCustomer: [dataWaste.predicted_waste_per_customer],
         receipts: [dataWaste.predicted_num_receipts],
-        carbonEmissions: [dataCarbonEmissions.predicted_co2]
+        carbonEmissions: [dataCarbonEmissions.predicted_co2],
       });
     } catch (error) {
       console.error("Error fetching data: ", error);
@@ -114,11 +117,8 @@ export default function WastePredictionForm() {
   };
 
   return (
-    
     <div>
-
       <div className="container">
-
         <form className="cardui">
           <br />
           <SliderWrapper>
@@ -132,8 +132,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="chicken-slider"
               valueLabelDisplay="auto"
-              step={10}        
-              marks={true}     
+              step={10}
+              marks={true}
             />
           </SliderWrapper>
 
@@ -148,8 +148,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="fish-slider"
               valueLabelDisplay="auto"
-              step={10}        
-              marks={true}     
+              step={10}
+              marks={true}
             />
           </SliderWrapper>
 
@@ -164,8 +164,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="meat-slider"
               valueLabelDisplay="auto"
-              step={10}        
-              marks={true}     
+              step={10}
+              marks={true}
             />
           </SliderWrapper>
 
@@ -180,8 +180,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="vegan-slider"
               valueLabelDisplay="auto"
-              step={10}        
-              marks={true}     
+              step={10}
+              marks={true}
             />
           </SliderWrapper>
 
@@ -196,8 +196,8 @@ export default function WastePredictionForm() {
               max={300}
               aria-labelledby="vegetarian-slider"
               valueLabelDisplay="auto"
-              step={10}        
-              marks={true} 
+              step={10}
+              marks={true}
             />
           </SliderWrapper>
 
@@ -207,29 +207,33 @@ export default function WastePredictionForm() {
               value={values.location}
               onChange={handleLocationChange}
             >
-              <MenuItem value="Chemicum"><b>Chemicum</b></MenuItem>
-              <MenuItem value="Physicum"><b>Physicum</b></MenuItem>
-              <MenuItem value="Exactum"><b>Exactum</b></MenuItem>
+              <MenuItem value="Chemicum">
+                <b>Chemicum</b>
+              </MenuItem>
+              <MenuItem value="Physicum">
+                <b>Physicum</b>
+              </MenuItem>
+              <MenuItem value="Exactum">
+                <b>Exactum</b>
+              </MenuItem>
             </Select>
           </FormControl>
 
           <FormControl fullWidth variant="outlined" sx={{ marginBottom: 4 }}>
-
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
-              minDate={minSelectableDate} 
-              shouldDisableDate={disableWeekends} 
-              value={selectedDate}
-              onChange={handleDateChange}          
+                minDate={minSelectableDate}
+                shouldDisableDate={disableWeekends}
+                value={selectedDate}
+                onChange={handleDateChange}
               />
             </LocalizationProvider>
-
           </FormControl>
 
           <div className="cardinput">
             <Bar
               data={{
-                labels: ['chicken', 'fish', 'meat', 'vegan', 'vegetarian'],
+                labels: ["chicken", "fish", "meat", "vegan", "vegetarian"],
                 datasets: [
                   {
                     label: "Meals",
@@ -238,7 +242,7 @@ export default function WastePredictionForm() {
                       values.fish,
                       values.meat,
                       values.vegan,
-                      values.vegetarian
+                      values.vegetarian,
                     ],
                     backgroundColor: [
                       "#eec591",
@@ -273,8 +277,8 @@ export default function WastePredictionForm() {
           <Button
             variant="contained"
             sx={{
-              bgcolor: '#155C2C',
-              "&:hover": { bgcolor: '#1C1C1C', color: 'white' }
+              bgcolor: "#155C2C",
+              "&:hover": { bgcolor: "#1C1C1C", color: "white" },
             }}
             size="large"
             onClick={fetchData}
@@ -284,23 +288,25 @@ export default function WastePredictionForm() {
         </form>
 
         <div class="chartswrapper">
-
-        {chartData.receipts && (
+          {chartData.receipts && (
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Planned meals', 'Predicted receipts'],
+                  labels: ["Planned meals", "Predicted receipts"],
                   datasets: [
                     {
                       label: "",
                       data: [
-                        ([values.chicken + values.fish + values.meat + values.vegan + values.vegetarian])[0],
+                        [
+                          values.chicken +
+                            values.fish +
+                            values.meat +
+                            values.vegan +
+                            values.vegetarian,
+                        ][0],
                         chartData.receipts[0],
                       ],
-                      backgroundColor: [
-                        "#d3e9bf",
-                        "#155C2C",
-                      ],
+                      backgroundColor: ["#d3e9bf", "#155C2C"],
                     },
                   ],
                 }}
@@ -328,55 +334,50 @@ export default function WastePredictionForm() {
           {chartData.receipts && (
             <div className="cardoutput">
               <Bar
-              data={{
-                labels: ['Carbon emissions (kg CO2e)'],
-                datasets: [
-                  {
-                    label: "",
-                    data: chartData.carbonEmissions,
-                    backgroundColor: [
-                      "#485460",
-                    ],
+                data={{
+                  labels: ["Carbon emissions (kg CO2e)"],
+                  datasets: [
+                    {
+                      label: "",
+                      data: chartData.carbonEmissions,
+                      backgroundColor: ["#485460"],
+                    },
+                  ],
+                }}
+                options={{
+                  plugins: {
+                    title: {
+                      display: true,
+                      text: "Predicted carbon emissions (in kg CO2e)",
+                    },
+                    legend: {
+                      display: false,
+                    },
                   },
-                ],
-              }}
-              options={{
-                plugins: {
-                  title: {
-                    display: true,
-                    text: "Predicted carbon emissions (in kg CO2e)",
+                  scales: {
+                    y: {
+                      min: 0,
+                      max: 1000,
+                    },
                   },
-                  legend: {
-                    display: false,
-                  },
-                },
-                scales: {
-                  y: {
-                    min: 0,
-                    max: 1000,
-                  },
-                },
-              }}
-            />
+                }}
+              />
             </div>
-          )}     
+          )}
 
           {chartData.wasteFromCustomers && (
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Customer waste (kg)', 'Kitchen waste (kg)'],
+                  labels: ["Customer waste (kg)", "Kitchen waste (kg)"],
                   datasets: [
                     {
                       label: "",
                       data: [
                         chartData.wasteFromCustomers[0],
-                        chartData.wasteFromKitchen[0]
+                        chartData.wasteFromKitchen[0],
                       ],
-                      backgroundColor: [
-                        "#eec591",
-                        "#9dd4dd",
-                      ],
+                      backgroundColor: ["#eec591", "#9dd4dd"],
                     },
                   ],
                 }}
@@ -405,7 +406,7 @@ export default function WastePredictionForm() {
             <div className="cardoutput">
               <Bar
                 data={{
-                  labels: ['Waste per customer (g)'],
+                  labels: ["Waste per customer (g)"],
                   datasets: [
                     {
                       label: "",
@@ -434,11 +435,8 @@ export default function WastePredictionForm() {
               />
             </div>
           )}
-
-          </div> 
-
         </div>
-
       </div>
+    </div>
   );
 }

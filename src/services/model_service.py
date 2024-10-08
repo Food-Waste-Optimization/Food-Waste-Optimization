@@ -21,7 +21,7 @@ NUM_TIMESTAMP_PER_DAY = (
 class ModelService:
     """Class for handling the connection between models, data and the app."""
 
-    PATH_ROOT_TRAINED_MODEL = Path("trained_models")
+    PATH_ROOT_TRAINED_MODEL = Path("/trained_models")
 
     def __init__(self):
         # data is fetched every time init is run, this should not happen\
@@ -125,7 +125,7 @@ class ModelService:
             "cyclic": {"future": ["dayofweek", "day", "month"]},
             "datetime_attribute": {"future": ["dayofweek", "day", "month"]},
         }
-        path_model = Path("trained_models/receipt/Jul_23_LightBGM.pt")
+        path_model = ModelService.PATH_ROOT_TRAINED_MODEL / "receipt/Jul_23_LightBGM.pt"
 
         self.models["receipt_per_day"] = LightGBMModel(
             lags=7,
@@ -139,7 +139,10 @@ class ModelService:
         logger.info("Load trained biowaste from meal forecasting models by restaurant")
 
         for restaurant in RESTAURANTS:
-            path_model = Path(f"trained_models/biowaste/Jul24_Lasso_{restaurant}.onnx")
+            path_model = (
+                ModelService.PATH_ROOT_TRAINED_MODEL
+                / f"biowaste/Jul24_Lasso_{restaurant}.onnx"
+            )
 
             self.models["biowaste_from_meal"][restaurant] = rt.InferenceSession(
                 path_model, providers=["CPUExecutionProvider"]
@@ -149,7 +152,10 @@ class ModelService:
         logger.info("Load trained co2 from meal forecasting models by restaurant")
 
         for restaurant in RESTAURANTS:
-            path_model = Path(f"trained_models/co2/Aug21_XGBoost_{restaurant}.json")
+            path_model = (
+                ModelService.PATH_ROOT_TRAINED_MODEL
+                / f"co2/Aug21_XGBoost_{restaurant}.json"
+            )
 
             assert path_model.exists()
 

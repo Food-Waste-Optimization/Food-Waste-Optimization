@@ -4,9 +4,10 @@ services:
     container_name: fwoapp
     build: .
     volumes:
-      - .env:/app/.env
+      - ${TRAINED_MODELS}:/trained_models
+
     ports:
-      - 5000:5000
+      - 1000:5000
 
     env_file:
       - .env
