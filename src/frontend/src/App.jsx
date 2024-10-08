@@ -1,12 +1,11 @@
-
 import React from "react";
 
 import { Chart as ChartJS, defaults } from "chart.js/auto";
 
-import "./App.css";
-
-import Header from "./components/Header";
 import TabMenu from "./components/TabMenu";
+import UntanglingFooter from "./components/UntanglingFooter";
+
+import "./App.css";
 
 defaults.maintainAspectRatio = false;
 defaults.responsive = true;
@@ -21,9 +20,13 @@ export const App = () => {
 
     <div className="App">
 
-      <Header />
+      <div className="min-h-screen bg-grey-200">
 
-      <TabMenu />
+        <TabMenu />
+
+        <UntanglingFooter />
+
+      </div>
       
     </div>
     
