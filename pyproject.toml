@@ -43,6 +43,8 @@ torch = "^2.4.0"
 nbformat = "^5.10.4"
 levenshtein = "^0.25.1"
 pyqt5 = "^5.15.11"
+polars = "^1.9.0"
+fastexcel = "^0.11.6"
 
 [build-system]
 requires = ["poetry-core"]
