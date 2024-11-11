@@ -50,6 +50,7 @@ lightning = "^2.4.0"
 torchmetrics = "^1.5.1"
 rich = "^13.9.3"
 tensorboard = "^2.18.0"
+pyspark = "^3.5.3"
 
 [build-system]
 requires = ["poetry-core"]
