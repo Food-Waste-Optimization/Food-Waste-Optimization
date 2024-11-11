@@ -24,3 +24,4 @@ node_modules/
 src/frontend/ReactFrontEnd/
 experiments_hoangle/
 trained_models/
+catboost_info/
