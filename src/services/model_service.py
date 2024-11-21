@@ -1,27 +1,95 @@
 """Creates ModelService class that allows requests to AI models."""
 
-import io
+import os
+from itertools import permutations
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+import joblib
 import numpy as np
-import onnxruntime as rt
 import pandas as pd
-import seaborn as sns
-from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
+
+# from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
+from pandas import DataFrame
 from xgboost import XGBRegressor
 
-RESTAURANTS = ["Chemicum", "Physicum", "Exactum"]
-NUM_TIMESTAMP_PER_DAY = (
-    9  # Since each day, the predictions' timestamp are 10 AM, 11 AM... 15 PM
-)
+from . import db
+
+cols_X = [
+    "weekday_sin",
+    "weekday_cos",
+    "day_sin",
+    "day_cos",
+    "month_sin",
+    "month_cos",
+    "restaurant",
+    "meal_id_enc",
+    "meal_type",
+    "pcs_mean",
+    "meal_id_other1_enc",
+    "meal_id_other2_enc",
+    "meal_id_other3_enc",
+    "meal_id_other4_enc",
+    "meal_type_other1",
+    "meal_type_other2",
+    "meal_type_other3",
+    "meal_type_other4",
+    "pcs_mean_other1",
+    "pcs_mean_other2",
+    "pcs_mean_other3",
+    "pcs_mean_other4",
+]
+
+cols = [
+    "index",
+    "date",
+    "restaurant",
+    "meal_id",
+    "meal_type",
+    "pcs_mean",
+    "idx_tup",
+    "meal_id_other1_enc",
+    "meal_id_other2_enc",
+    "meal_id_other3_enc",
+    "meal_id_other4_enc",
+    "meal_type_other1",
+    "meal_type_other2",
+    "meal_type_other3",
+    "meal_type_other4",
+    "pcs_mean_other1",
+    "pcs_mean_other2",
+    "pcs_mean_other3",
+    "pcs_mean_other4",
+]
+
+cols_cat = [
+    "restaurant",
+    "meal_type",
+    "meal_type_other1",
+    "meal_type_other2",
+    "meal_type_other3",
+    "meal_type_other4",
+]
+map_mealtype = {
+    "meat": 1,  # 'meat',
+    "fish": 2,  # 'fish',
+    "vegan": 3,  # 'vegan',
+    "vegetarian": 4,  # 'vegetarian',
+    "chicken": 5,  # 'chicken'
+}
+
+map_restaurantcode2str = {
+    "che": "Chemicum",
+    "exa": "Exactum",
+    "phy": "Physicum",
+    "vik": "Vikki",
+}
 
 
 class ModelService:
     """Class for handling the connection between models, data and the app."""
 
-    PATH_ROOT_TRAINED_MODEL = Path("/trained_models")
+    PATH_ROOT_TRAINED_MODEL = Path(os.getenv("TRAINED_MODELS", "/trained_models"))
 
     def __init__(self):
         # data is fetched every time init is run, this should not happen\
@@ -33,135 +101,38 @@ class ModelService:
             "receipt_per_day": None,
             "biowaste_from_meal": {},
             "co2_from_meal": {},
+            "per_day_POS": None,
+            "encoder": None,
         }
-        self._load_receipt_forecaster()
-        self._load_biowaste_forecaster()
-        self._load_occupancy_forecaster()
-        self._load_meal_forecaster()
+        # self._load_receipt_forecaster()
+        # self._load_biowaste_forecaster()
+        # self._load_occupancy_forecaster()
+        # self._load_meal_forecaster()
 
-        self._load_receipt_byday_forecaster()
-        self._load_biowaste_from_meal_forecaster()
-        self._load_co2_from_meal_forecaster()
+        # self._load_receipt_byday_forecaster()
+        # self._load_biowaste_from_meal_forecaster()
+        # self._load_co2_from_meal_forecaster()
 
-        plt.style.use("seaborn-v0_8")
-        plt.rcParams.update({"font.size": 8})
+        self._load_model_phase4()
 
         # self.data = data_repo.get_model_fit_data()
         # self.model = NeuralNetwork(
         #     data=self.data)
 
-    def _load_receipt_forecaster(self):
-        logger.info("Load trained receipt forecasting models for 3 restaurants")
+    def _load_model_phase4(self):
+        logger.info("Load trained model for per-meal POS forecast and encoder")
 
-        model_name = "receipt"
-        add_encoders = {
-            "cyclic": {"future": ["hour", "dayofweek"]},
-            "datetime_attribute": {"future": ["hour", "dayofweek"]},
-        }
+        path = ModelService.PATH_ROOT_TRAINED_MODEL / "pos/phase_4/xgb_cat_Nov13.json"
+        self.models["per_day_POS"] = XGBRegressor(
+            tree_method="hist", enable_categorical=True
+        )
+        self.models["per_day_POS"].load_model(path)
 
-        for restaurant in RESTAURANTS:
-            path_model = (
-                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
-            )
-            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(
-                path_model
-            )
-
-    def _load_biowaste_forecaster(self):
-        logger.info("Load trained biowaste forecasting models for 3 restaurants")
-
-        add_encoders = {
-            "cyclic": {"past": ["dayofweek"]},
-            "datetime_attribute": {"past": ["dayofweek"]},
-        }
-        model_name = "biowaste"
-
-        for restaurant in RESTAURANTS:
-            path_model = (
-                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
-            )
-            self.models[model_name][restaurant] = LinearRegressionModel(
-                lags=5, lags_past_covariates=5, add_encoders=add_encoders
-            ).load(path_model)
-
-    def _load_occupancy_forecaster(self):
-        logger.info("Load trained occupancy forecasting models for 3 restaurants")
-
-        model_name = "occupancy"
-        add_encoders = {
-            "cyclic": {"future": ["hour", "dayofweek"]},
-            "datetime_attribute": {"future": ["hour", "dayofweek"]},
-        }
-
-        for restaurant in RESTAURANTS:
-            path_model = (
-                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
-            )
-            self.models[model_name][restaurant] = ARIMA(add_encoders=add_encoders).load(
-                path_model
-            )
-
-    def _load_meal_forecaster(self):
-        logger.info("Load trained meal forecasting models for 3 restaurants")
-
-        add_encoders = {
-            "cyclic": {"past": ["dayofweek"]},
-            "datetime_attribute": {"past": ["dayofweek"]},
-        }
-        model_name = "meal"
-
-        for restaurant in RESTAURANTS:
-            path_model = (
-                ModelService.PATH_ROOT_TRAINED_MODEL / model_name / f"{restaurant}.pt"
-            )
-            self.models[model_name][restaurant] = LinearRegressionModel(
-                lags=4, lags_past_covariates=5, add_encoders=add_encoders
-            ).load(path_model)
-
-    def _load_receipt_byday_forecaster(self):
-        logger.info("Load trained receipt forecasting model by day")
-
-        add_encoders = {
-            "cyclic": {"future": ["dayofweek", "day", "month"]},
-            "datetime_attribute": {"future": ["dayofweek", "day", "month"]},
-        }
-        path_model = ModelService.PATH_ROOT_TRAINED_MODEL / "receipt/Jul_23_LightBGM.pt"
-
-        self.models["receipt_per_day"] = LightGBMModel(
-            lags=7,
-            lags_future_covariates=[0],
-            add_encoders=add_encoders,
-            output_chunk_length=1,
-            verbose=-1,
-        ).load(path_model)
-
-    def _load_biowaste_from_meal_forecaster(self):
-        logger.info("Load trained biowaste from meal forecasting models by restaurant")
-
-        for restaurant in RESTAURANTS:
-            path_model = (
-                ModelService.PATH_ROOT_TRAINED_MODEL
-                / f"biowaste/Jul24_Lasso_{restaurant}.onnx"
-            )
-
-            self.models["biowaste_from_meal"][restaurant] = rt.InferenceSession(
-                path_model, providers=["CPUExecutionProvider"]
-            )
-
-    def _load_co2_from_meal_forecaster(self):
-        logger.info("Load trained co2 from meal forecasting models by restaurant")
-
-        for restaurant in RESTAURANTS:
-            path_model = (
-                ModelService.PATH_ROOT_TRAINED_MODEL
-                / f"co2/Aug21_XGBoost_{restaurant}.json"
-            )
-
-            assert path_model.exists()
-
-            regressor = XGBRegressor()
-            regressor.load_model(path_model)
-            self.models["co2_from_meal"][restaurant] = regressor
+        path = (
+            ModelService.PATH_ROOT_TRAINED_MODEL
+            / "encoder/phase_4/targetenc_meal_id_Nov13.pkl"
+        )
+        self.models["encoder"] = joblib.load(path)
 
     def _post_process(self, prediction):
         if prediction <= 0:
@@ -171,267 +142,166 @@ class ModelService:
 
         return prediction
 
-    def forecast_receipt(self, num_of_days: int = 5) -> list:
-        """Forecast the number of receipts `num_of_days` ahead
+    def forecast_pos(self, meals: DataFrame) -> DataFrame | None:
+        """Predict the POS for each meal in a specific date given the list of meal ids
 
         Args:
-            num_of_days (int, optional): The number of days for forecasting. Defaults to 5.
+            meals (DataFrame): input dataframe
 
         Returns:
-            list: forecasted receipt quantity per date per restaurant
+            DataFrame|None: predicted POS
         """
 
-        predictions = pd.DataFrame()
+        # Read from database the info of given meal_ids
+        dim_meals = db.fetch_meal_info_with_ids(meal_ids=meals["meal_id"].tolist())
 
-        # Forecast the future
-        for restaurant in RESTAURANTS:
-            pred = self.models["receipt"][restaurant].predict(
-                num_of_days * NUM_TIMESTAMP_PER_DAY
+        if len(dim_meals) == 0:
+            return None
+
+        feat = (
+            meals.merge(dim_meals, left_on="meal_id", right_on="id", how="left")
+            .copy()
+            .drop(columns="id")
+        )
+
+        # Create columns for other and encode them
+        meal_ids = (
+            meals.groupby(["index", "date", "restaurant"])["meal_id"]
+            .apply(lambda x: list(x))
+            .reset_index()
+            .rename(columns={"meal_id": "meal_ids"})
+        )
+        feat = feat.merge(meal_ids, on=["index", "date", "restaurant"], how="left")
+
+        # Create columns for other and encode them
+        THETA = 5
+        records = []
+        for r in feat.itertuples():
+            ids = set(r.meal_ids)
+            ids.remove(r.meal_id)
+
+            for idx_tup, tup in enumerate(permutations(ids)):
+                tup = [*tup]
+
+                # pad
+                if len(tup) < THETA - 1:
+                    tup.extend([0] * (THETA - 1 - len(tup)))
+
+                for idx, m_id in enumerate(tup):
+                    records.append(
+                        {
+                            "index": r.index,
+                            "date": r.date,
+                            "restaurant": r.restaurant,
+                            "meal_id": r.meal_id,
+                            "meal_type": r.type,
+                            "pcs_mean": r.mean,
+                            "idx_tup": idx_tup,
+                            "other": idx + 1,
+                            "meal_id_other": m_id,
+                        }
+                    )
+
+        feat = (
+            pd.DataFrame.from_records(records)
+            .merge(dim_meals, how="left", left_on="meal_id_other", right_on="id")
+            .drop(columns="id")
+            .rename(columns={"type": "meal_type_other", "mean": "pcs_mean_other"})
+        )
+
+        encoded = self.models["encoder"].transform(
+            feat["meal_id_other"].to_numpy().reshape(-1, 1)
+        )
+        mask = (feat["meal_id_other"] != 0).astype(np.int32)
+        feat["meal_id_other_enc"] = encoded.squeeze() * mask
+
+        feat["meal_type_other"] = feat["meal_type_other"].map(map_mealtype)
+
+        feat = feat.fillna(0)
+
+        cols_idx = [
+            "index",
+            "date",
+            "restaurant",
+            "meal_id",
+            "meal_type",
+            "pcs_mean",
+            "idx_tup",
+        ]
+        feat = feat.pivot(
+            index=cols_idx,
+            columns="other",
+            values=["pcs_mean_other", "meal_type_other", "meal_id_other_enc"],
+        ).reset_index()
+
+        feat.columns = cols
+
+        feat.drop(columns="idx_tup", inplace=True)
+
+        # Encode main columns
+        feat["meal_type"] = feat["meal_type"].map(map_mealtype)
+
+        def _encode_date_cyclic(
+            t, period_week: int = 7, period_day: int = 31, period_month: int = 12
+        ):
+            def get_sin_encoding(x, period: int):
+                return np.sin(2 * np.pi * x / period)
+
+            def get_cos_encoding(x, period: int):
+                return np.cos(2 * np.pi * x / period)
+
+            return pd.Series(
+                {
+                    "weekday_sin": get_sin_encoding(t.weekday(), period_week),
+                    "weekday_cos": get_cos_encoding(t.weekday(), period_week),
+                    "day_sin": get_sin_encoding(t.day, period_day),
+                    "day_cos": get_cos_encoding(t.day, period_day),
+                    "month_sin": get_sin_encoding(t.month, period_month),
+                    "month_cos": get_cos_encoding(t.month, period_month),
+                }
             )
 
-            if len(predictions) == 0:
-                predictions["datetime"] = pred.time_index
+        datetime_encoded = feat["date"].apply(_encode_date_cyclic)
+        feat = pd.concat([feat, datetime_encoded], axis=1)
 
-            predictions.loc[:, restaurant] = [
-                self._post_process(x) for x in pred.values().squeeze().tolist()
-            ]
-
-        # Post-process
-        predictions["datetime"] = predictions["datetime"].dt.strftime(
-            r"%Y-%m-%d %H:%M:%S"
+        feat["meal_id_enc"] = self.models["encoder"].transform(
+            feat["meal_id"].to_numpy().reshape(-1, 1)
         )
 
-        # Return
-        ret = predictions.to_dict("records")
-
-        return ret
-
-    def forecast_biowaste(self, num_of_days: int = 5):
-        predictions = {}
-
-        # Forecast the future
-        for restaurant in RESTAURANTS:
-            pred = self.models["biowaste"][restaurant].predict(num_of_days)
-
-            df_pred = pred.pd_dataframe().reset_index()
-            df_pred["date"] = df_pred["date"].dt.strftime(r"%Y-%m-%d")
-
-            for row in df_pred.itertuples():
-                if row.date not in predictions:
-                    predictions[row.date] = {"date": row.date}
-
-                predictions[row.date] = {
-                    **predictions[row.date],
-                    restaurant: {
-                        "amnt_waste_customer": self._post_process(
-                            row.amnt_waste_customer
-                        ),
-                        "amnt_waste_coffee": self._post_process(row.amnt_waste_coffee),
-                        "amnt_waste_kitchen": self._post_process(
-                            row.amnt_waste_kitchen
-                        ),
-                        "amnt_waste_hall": self._post_process(row.amnt_waste_hall),
-                    },
-                }
-
-        # Return
-        ret = list(predictions.values())
-
-        return ret
-
-    def forecast_occupancy(self, num_of_days: int = 5) -> list:
-        """Forecast the number of occupancy from SuperSight data
-
-        Args:
-            num_of_days (int, optional): _description_. Defaults to 5.
-        """
-        num_timesteps = NUM_TIMESTAMP_PER_DAY * num_of_days
-
-        predictions = {}
-        for restaurant in RESTAURANTS:
-            # Forecast
-            pred = self.models["occupancy"][restaurant].predict(num_timesteps)
-
-            # Post-process forecasted data
-            df_pred = pred.pd_dataframe().reset_index()
-            df_pred["datetime"] = df_pred["datetime"].dt.strftime(r"%Y-%m-%d %H:%M:%S")
-
-            for row in df_pred.itertuples():
-                if row.datetime not in predictions:
-                    predictions[row.datetime] = {"datetime": row.datetime}
-
-                predictions[row.datetime][restaurant] = self._post_process(
-                    row.num_customer_in
-                )
-
-        ret = list(predictions.values())
-
-        return ret
-
-    def forecast_sold_meals(self, num_of_days: int = 5):
-        predictions = {}
-
-        # Forecast the future
-        for restaurant in RESTAURANTS:
-            pred = self.models["meal"][restaurant].predict(num_of_days)
-
-            df_pred = pred.pd_dataframe().reset_index()
-            df_pred["date"] = df_pred["date"].dt.strftime(r"%Y-%m-%d")
-
-            for row in df_pred.itertuples():
-                if row.date not in predictions:
-                    predictions[row.date] = {"date": row.date}
-
-                predictions[row.date] = {
-                    **predictions[row.date],
-                    restaurant: {
-                        "num_fish": self._post_process(row.num_fish),
-                        "num_chicken": self._post_process(row.num_chicken),
-                        "num_vegetable": self._post_process(row.num_vegetable),
-                        "num_meat": self._post_process(row.num_meat),
-                        "num_NotMapped": self._post_process(row.num_NotMapped),
-                        "num_vegan": self._post_process(row.num_vegan),
-                    },
-                }
-
-        # Return
-        ret = list(predictions.values())
-
-        return ret
-
-    def forecast_biowaste_with_meal(
-        self,
-        restaurant: str,
-        num_fish: float,
-        num_chicken: float,
-        num_vegetarian: float,
-        num_meat: float,
-        num_vegan: float,
-        date: str,
-        return_type: str,
-    ):
-        # Predict no. receipts next day
-        date_pred = pd.to_datetime(date)
-
-        # Ensure the predicted day is not weekend
-        if date_pred.weekday() >= 5:
-            raise ValueError("Input date must not be weekend")
-
-        # Ensure the date must be greater or equal to '2024-05-09
-        DATE_FIRST_PREDICT = (
-            "2024-05-09"  # The day after the last available date in data
-        )
-        n_bdays = len(pd.bdate_range(start=DATE_FIRST_PREDICT, end=date_pred))
-        if n_bdays <= 0:
-            raise ValueError("Input date not after 2024-05-08")
-
-        out = self.models["receipt_per_day"].predict(n_bdays)
-
-        # logger.info(f"date_pred: {out.time_index[-1]}")
-
-        n_rpts = (
-            out[f"{restaurant}_rcpts"]
-            .data_array()[-1]
-            .to_numpy()
-            .squeeze()
-            .astype(np.int32)
-            .item()
-        )
-
-        # Predict waste
-        X_predict = pd.DataFrame(
+        feat["restaurant_raw"] = feat["restaurant"].copy()
+        feat["restaurant"] = feat["restaurant"].map(
             {
-                "fish": [num_fish],
-                "chicken": [num_chicken],
-                "vegetarian": [num_vegetarian],
-                "meat": [num_meat],
-                "vegan": [num_vegan],
+                "che": 1,  #'chemicum',
+                "phy": 2,  #'physicum',
+                "exa": 3,  #'exactum'
             }
         )
 
-        sess = self.models["biowaste_from_meal"][restaurant]
-        input_name = sess.get_inputs()[0].name
-        label_name = sess.get_outputs()[0].name
-        pred_onx = sess.run([label_name], {input_name: X_predict.to_numpy()})[0]
+        # Assign categorical column type
+        for col in cols_cat:
+            feat[col] = feat[col].astype("category")
 
-        # Calculate the waste per customer
-        amnt_waste_per_customer = pred_onx.sum() * 1000 / n_rpts
+        # Keep important columns
+        X = feat[cols_X]
 
-        ret = None
-        if return_type == "image":
-            # Plot
-            fig = plt.figure(figsize=(10, 8))
-            fig.suptitle(f"Forecast in date: {date}", fontweight="bold", fontsize=14)
-
-            ax = fig.add_subplot(221)
-            sns.barplot(X_predict, ax=ax)
-            for i, val in enumerate(X_predict.to_numpy().squeeze().astype(np.int32)):
-                plt.text(i, val + 2, val, ha="center", fontsize=11)
-            ax.set_title("Input: number of meals per type", fontweight="bold")
-
-            ax = fig.add_subplot(222)
-            sns.barplot(x=["Customer", "Kitchen"], y=pred_onx.squeeze(), ax=ax)
-            for i, val in enumerate(pred_onx.squeeze()):
-                plt.text(i, val + 0.2, f"{val:.2f}", ha="center", fontsize=11)
-            ax.set_title("Predicted amount of waste per type", fontweight="bold")
-
-            ax = fig.add_subplot(223)
-            sns.barplot(x=["Num. receipts"], y=[n_rpts], ax=ax)
-            ax.set_title("Forecasted number of receipts (POS)", fontweight="bold")
-
-            ax = fig.add_subplot(224)
-            sns.barplot(x=["Amount"], y=[amnt_waste_per_customer], ax=ax)
-            ax.axhline(y=40, color="r", linestyle="-.")
-            ax.set_title("Amnt. waste per customer (in gram)", fontweight="bold")
-
-            # Export image
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches="tight")
-            buf.seek(0)
-
-            ret = buf.read()
-        elif return_type == "numeric":
-            ret = {
-                "date": date,
-                "predicted_waste_customer": pred_onx.squeeze()[0].item(),
-                "predicted_waste_kitchen": pred_onx.squeeze()[1].item(),
-                "predicted_num_receipts": n_rpts,
-                "predicted_waste_per_customer": amnt_waste_per_customer.item(),
-            }
-        else:
-            raise NotImplementedError
-
-        return ret
-
-    def forecast_co2_with_meal(
-        self,
-        restaurant: str,
-        num_fish: float,
-        num_chicken: float,
-        num_vegetarian: float,
-        num_meat: float,
-        num_vegan: float,
-    ):
-        # Predict co2
-        X_predict = np.array(
-            [
-                [
-                    num_fish,
-                    num_chicken,
-                    num_vegetarian,
-                    num_meat,
-                    num_vegan,
-                ]
-            ],
-            dtype=np.float32,
+        feat["pcs_pred"] = np.clip(
+            self.models["per_day_POS"].predict(X),
+            a_min=0,
+            a_max=None,
         )
 
-        model = self.models["co2_from_meal"][restaurant]
+        pred = (
+            feat.groupby(["index", "date", "restaurant_raw", "meal_id"], observed=True)[
+                "pcs_pred"
+            ]
+            .mean()
+            .reset_index()
+            .rename(columns={"restaurant_raw": "restaurant"})
+        )
 
-        pred_co2 = model.predict(X_predict)
+        # Post process
+        pred.rename(columns={"pcs_pred": "pcs"}, inplace=True)
+        pred["pcs"] = pred["pcs"].clip(0).astype(int)
+        output = pred[["meal_id", "pcs"]]
 
-        ret = {
-            "predicted_co2": pred_co2.squeeze().item(),
-        }
-
-        return ret
+        return output
