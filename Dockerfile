@@ -1,4 +1,4 @@
-FROM node:18-alpine AS build-front
+FROM node:20 AS build-front
 
 WORKDIR /build
 
@@ -6,12 +6,14 @@ ENV VITE_AUTHORITY=https://TrialTenantD8Wzr80S.ciamlogin.com/
 ENV VITE_CLIENT_ID_PRODUCTION=f48af26e-9964-4e6e-9706-6f53fab1d115
 ENV VITE_URI_PRODUCTION=${VITE_URI_PRODUCTION}
 
+RUN apt update && apt install -y python3
+
 COPY src/frontend/ /build
 RUN npm install
 RUN npm run build-prod
 
 ### Building container for flask app
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 

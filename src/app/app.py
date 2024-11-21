@@ -2,15 +2,16 @@
 
 import os
 
-from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
+from loguru import logger
 
 from ..config import set_configuration
 from .routes import blueprint
 
-load_dotenv()
-FLASK_ENV = os.getenv("FLASK_ENV", None)
+FLASK_ENV = os.getenv("FLASK_ENV", "")
+
+logger.info(f"Work at FLASK_ENV: {FLASK_ENV}")
 
 
 def create_app():

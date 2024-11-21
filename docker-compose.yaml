@@ -5,9 +5,15 @@ services:
     build: .
     volumes:
       - ${TRAINED_MODELS}:/trained_models
+    environment:
+      - TRAINED_MODELS=/trained_models
+      - DB_PORT=${DB_PORT}
+      - DB_PWD=${DB_PWD}
+      - DB_USER=${DB_USER}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - VITE_URI_PRODUCTION=${VITE_URI_PRODUCTION}
+      - FLASK_ENV=production
 
     ports:
       - 1000:5000
-
-    env_file:
-      - .env
