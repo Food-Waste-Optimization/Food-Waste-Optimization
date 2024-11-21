@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { useRef } from "react";
 
 import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import CircularProgress from "@mui/material/CircularProgress";
+
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers";
-import CircularProgress from "@mui/material/CircularProgress";
+
+import { Line } from "react-chartjs-2";
 
 import jsPDF from "jspdf";
 
@@ -16,6 +20,13 @@ function RecommendationWeekly() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedWeeks, setSelectedWeeks] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [totalPiecesPerDay, setTotalPiecesPerDay] = useState([]);
+  const [TotalWaste, setTotalWaste] = useState([]);
+  const [TotalCo2, setTotalCo2] = useState([]);
+
+  const totalPiecesRef = useRef(null);
+  const TotalWasteRef = useRef(null);
+  const TotalCo2Ref = useRef(null);
 
   const handleLocationChange = (event) => {
     setSelectedLocation(event.target.value);
@@ -53,35 +64,144 @@ function RecommendationWeekly() {
       location,
       selectedWeeks
     );
-    generateWeeklyPlanPDF(weeklyPlan);
-    setLoading(false);
+
+    const totalPiecesArray = [];
+    const TotalWasteArray = [];
+    const TotalCo2Array = [];
+
+    const labels = [];
+
+    weeklyPlan.forEach((week) => {
+      week.weekData.forEach((day) => {
+        totalPiecesArray.push(day.totalPieces);
+        TotalWasteArray.push(day.total_waste);
+        TotalCo2Array.push(day.total_co2);
+
+        labels.push(day.date.format("YYYY-MM-DD"));
+      });
+    });
+
+    setTotalPiecesPerDay(totalPiecesArray);
+    setTotalWaste(TotalWasteArray);
+    setTotalCo2(TotalCo2Array);
+
+    setChartLabels(labels);
+
+    setTimeout(() => {
+      generateWeeklyPlanPDF(weeklyPlan);
+      setLoading(false);
+    }, 1000); //wait for 1 second
   };
 
+  const [chartLabels, setChartLabels] = useState([]);
+
   const fetchMenuDataForWeeks = async (startDate, location, weeks) => {
-    let weeklyPlan = [];
+    const weeklyPlan = [];
 
     for (let i = 0; i < weeks; i++) {
       const weekData = [];
+
+      //create an array to hold promises for fetching each day's data simultaneously
+
+      const dailyPromises = [];
+
       for (let j = 0; j < 7; j++) {
-        const currentDate = startDate.add(i * 7 + j, "day");
-        const menuData = await fetchMenuForDateAndLocation(
-          currentDate,
-          location
-        );
-        if (
-          menuData.length > 0 &&
-          currentDate.day() !== 6 &&
-          currentDate.day() !== 0
-        ) {
-          weekData.push({ date: currentDate, menu: menuData });
+        const currentDate = startDate.clone().add(i * 7 + j, "day");
+
+        if (currentDate.day() >= 1 && currentDate.day() <= 5) {
+          dailyPromises.push(
+            (async () => {
+              const menuData = await fetchMenuForDateAndLocation(
+                currentDate,
+                location
+              );
+              const totalPieces = await fetchTotalPiecesForDateAndLocation(
+                currentDate,
+                location
+              );
+              const TotalWaste = await fetchTotalWasteForDateAndLocation(
+                currentDate,
+                location
+              );
+              const TotalCo2 = await fetchTotalCo2ForDateAndLocation(
+                currentDate,
+                location
+              );
+
+              return {
+                date: currentDate,
+                menu: menuData,
+                totalPieces,
+                total_waste: TotalWaste,
+                total_co2: TotalCo2,
+              };
+            })()
+          );
         }
       }
+
+      //wait for all promises to resolve
+      const resolvedData = await Promise.all(dailyPromises);
+
+      weekData.push(...resolvedData.filter((day) => day !== undefined));
+
       if (weekData.length > 0) {
-        weeklyPlan.push({ startDate: startDate.add(i, "week"), weekData });
+        weeklyPlan.push({
+          startDate: startDate.clone().add(i, "week"),
+          weekData,
+        });
       }
     }
 
     return weeklyPlan;
+  };
+
+  const fetchTotalPiecesForDateAndLocation = async (date, location) => {
+    const formattedDate = date.format("YYYY-MM-DD");
+    const url = `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${location}&date=${formattedDate}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const menuInfo = data.menus_info[0];
+      return menuInfo ? menuInfo.total_pcs_from_dishes || 0 : 0;
+    } catch (error) {
+      console.error("Error fetching total pieces:", error);
+      return 0;
+    }
+  };
+
+  const fetchTotalWasteForDateAndLocation = async (date, location) => {
+    const formattedDate = date.format("YYYY-MM-DD");
+    const url = `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${location}&date=${formattedDate}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const menuInfo = data.menus_info[0];
+      return menuInfo ? menuInfo.total_waste || 0 : 0;
+    } catch (error) {
+      console.error("Error fetching waste per customer:", error);
+      return 0;
+    }
+  };
+
+  const fetchTotalCo2ForDateAndLocation = async (date, location) => {
+    const formattedDate = date.format("YYYY-MM-DD");
+    const url = `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${location}&date=${formattedDate}`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      const menuInfo = data.menus_info[0];
+      return menuInfo ? menuInfo.total_co2 || 0 : 0;
+    } catch (error) {
+      console.error("Error fetching CO2 per customer:", error);
+      return 0;
+    }
   };
 
   const fetchMenuForDateAndLocation = async (date, location) => {
@@ -120,14 +240,18 @@ function RecommendationWeekly() {
     const doc = new jsPDF();
     doc.setFontSize(18);
     const firstWeekStartDate = weeklyPlan[0].startDate.format("YYYY-MM-DD");
+    let chartImageHeight = 70;
     doc.text(
       `Weekly Menu Plan for ${selectedLocation} starting ${firstWeekStartDate}`,
       20,
       20
     );
-    doc.setFontSize(12);
+
+    doc.setFontSize(14);
 
     let verticalOffset = 40;
+    doc.setFontSize(12);
+
     const pageHeight = 300;
 
     weeklyPlan.forEach((week) => {
@@ -135,6 +259,7 @@ function RecommendationWeekly() {
       doc.setFontSize(14);
       doc.text(`Week starting ${weekStart}`, 20, verticalOffset);
       verticalOffset += 10;
+      doc.setFontSize(12);
 
       week.weekData.forEach((day) => {
         const dayName = day.date.format("dddd");
@@ -167,7 +292,53 @@ function RecommendationWeekly() {
       verticalOffset += 10;
     });
 
+    doc.addPage();
+
+    //capture charts as images and add to PDF
+
+    doc.text("Predicted total sold pieces", 20, 40);
+    if (totalPiecesRef.current) {
+      const totalPiecesChartImage = totalPiecesRef.current.toBase64Image();
+      doc.addImage(totalPiecesChartImage, "JPEG", 20, 30, 170, 70);
+    }
+
+    if (TotalWasteRef.current) {
+      const TotalWasteChartImage = TotalWasteRef.current.toBase64Image();
+      doc.addImage(TotalWasteChartImage, "JPEG", 20, 115, 170, 70);
+    }
+    doc.text("Predicted total waste", 20, 125);
+
+    if (TotalCo2Ref.current) {
+      const TotalCo2ChartImage = TotalCo2Ref.current.toBase64Image();
+      doc.addImage(TotalCo2ChartImage, "JPEG", 20, 200, 170, 70);
+    }
+    doc.text("Predicted CO2", 20, 210);
+
     doc.save("weekly_menu_plan.pdf");
+  };
+
+  const data = {
+    labels: chartLabels,
+    datasets: [
+      {
+        label: "Total pieces",
+        data: totalPiecesPerDay,
+        fill: false,
+        borderColor: "blue",
+      },
+      {
+        label: "Waste per customer",
+        data: TotalWaste,
+        fill: false,
+        borderColor: "green",
+      },
+      {
+        label: "CO2 per customer",
+        data: TotalCo2,
+        fill: false,
+        borderColor: "red",
+      },
+    ],
   };
 
   return (
@@ -372,6 +543,129 @@ function RecommendationWeekly() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <div
+          className="bg-gray-100 shadow-md rounded-lg p-4 w-1/2 mb-6"
+          style={{
+            height: "350px",
+            margin: "0px 0px 30px 0px",
+            visibility: "hidden",
+            position: "absolute",
+            left: "-9999px",
+          }}
+        >
+          {totalPiecesPerDay.length > 0 && (
+            <Line
+              ref={totalPiecesRef}
+              data={{
+                labels: chartLabels,
+                datasets: [
+                  {
+                    label: "Predicted total sold pieces",
+                    data: totalPiecesPerDay,
+                    borderColor: "#006400",
+                    backgroundColor: "#8FBC8F",
+                    dataPointColor: "#32CD32",
+                    borderWidth: 2,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                animation: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax: Math.max(...totalPiecesPerDay) + 100,
+                  },
+                },
+              }}
+            />
+          )}
+        </div>
+
+        <div
+          className="bg-gray-100 shadow-md rounded-lg p-4 w-1/2 mb-6"
+          style={{
+            height: "350px",
+            margin: "0px 0px 30px 0px",
+            visibility: "hidden",
+            position: "absolute",
+            left: "-9999px",
+          }}
+        >
+          {TotalWaste.length > 0 && (
+            <Line
+              ref={TotalWasteRef}
+              data={{
+                labels: chartLabels,
+                datasets: [
+                  {
+                    label: "Predicted total waste (kg)",
+                    data: TotalWaste.map((value) => value),
+                    borderColor: "#B22222",
+                    backgroundColor: "#FF7F7F",
+                    dataPointColor: "#FF0000",
+                    borderWidth: 2,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                animation: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax:
+                      Math.max(...TotalWaste.map((value) => value)) + 10,
+                  },
+                },
+              }}
+            />
+          )}
+        </div>
+
+        <div
+          className="bg-gray-100 shadow-md rounded-lg p-4 w-1/2 mb-6"
+          style={{
+            height: "350px",
+            margin: "0px 0px 30px 0px",
+            visibility: "hidden",
+            position: "absolute",
+            left: "-9999px",
+          }}
+        >
+          {TotalCo2.length > 0 && (
+            <Line
+              ref={TotalCo2Ref}
+              data={{
+                labels: chartLabels,
+                datasets: [
+                  {
+                    label: "Predicted total CO2 (kg CO2e)",
+                    data: TotalCo2,
+                    borderColor: "#00008B",
+                    backgroundColor: "#ADD8E6",
+                    dataPointColor: "#1E90FF",
+                    borderWidth: 2,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                animation: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax: Math.max(...TotalCo2) + 0.2,
+                  },
+                },
+              }}
+            />
+          )}
         </div>
       </div>
     </>
