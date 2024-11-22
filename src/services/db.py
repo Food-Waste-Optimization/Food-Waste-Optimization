@@ -93,7 +93,7 @@ def fetch_meal_info(
         select
             {table2}.meal_id
             , {table2}.meal_type_1 as meal_type
-            -- , {table2}.restaurant as restaurant
+            , {table2}.is_kela as is_kela
             , tmp1.meal as name
         from {table2}
         JOIN tmp1
@@ -130,6 +130,7 @@ def fetch_meal_info_with_ids(table: str = "meals", **kwargs) -> pd.DataFrame:
             meal_id as "id"
             , meal_type_1 as type
             , pcs_mean as "mean"
+            , is_kela
         from {table}
         where meal_id = ANY(%s)
         ;
