@@ -1,1 +1,1 @@
-# Food-Waste-Optimization
+# Foodwaste forecasting and recommendation
