@@ -36,6 +36,7 @@ def forecast_receipt():
         "chemicum",
         "physicum",
         "exactum",
+        "viikuna",
     ]:
         resp = make_response("Invalid query argument: 'restaurant'", 400)
 
@@ -58,6 +59,8 @@ def forecast_receipt():
                 restaurant = "exa"
             case "physicum":
                 restaurant = "phy"
+            case "viikuna":
+                restaurant = "vik"
 
         meals = pd.DataFrame(
             {
@@ -103,6 +106,7 @@ def recommend_menu():
         "chemicum",
         "physicum",
         "exactum",
+        "viikuna",
     ]:
         resp = make_response("Invalid query argument: 'restaurant'", 400)
 
@@ -138,6 +142,8 @@ def recommend_menu():
                 restaurant = "exa"
             case "physicum":
                 restaurant = "phy"
+            case "viikuna":
+                restaurant = "vik"
 
         # Fetch necessary data
         menus = db.fetch_menu(
@@ -170,7 +176,7 @@ def get_meal_info():
     if (
         restaurant is None
         or not isinstance(restaurant, str)
-        or restaurant.lower() not in ["chemicum", "physicum", "exactum"]
+        or restaurant.lower() not in ["chemicum", "physicum", "exactum", "viikuna"]
     ):
         resp = make_response("Invalid query argument: 'restaurant'", 400)
 
@@ -186,6 +192,8 @@ def get_meal_info():
                 restaurant = "exa"
             case "physicum":
                 restaurant = "phy"
+            case "viikuna":
+                restaurant = "vik"
 
         # Fetch necessary data
         meals = db.fetch_meal_info(restaurant=restaurant, schoolyear=schoolyear)

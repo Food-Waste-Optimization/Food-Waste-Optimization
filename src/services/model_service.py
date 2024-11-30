@@ -122,7 +122,7 @@ class ModelService:
     def _load_model_phase4(self):
         logger.info("Load trained model for per-meal POS forecast and encoder")
 
-        path = ModelService.PATH_ROOT_TRAINED_MODEL / "pos/phase_4/xgb_cat_Nov13.json"
+        path = ModelService.PATH_ROOT_TRAINED_MODEL / "pos/phase_4/xgb_cat_Nov30.json"
         self.models["per_day_POS"] = XGBRegressor(
             tree_method="hist", enable_categorical=True
         )
@@ -130,7 +130,7 @@ class ModelService:
 
         path = (
             ModelService.PATH_ROOT_TRAINED_MODEL
-            / "encoder/phase_4/targetenc_meal_id_Nov13.pkl"
+            / "encoder/phase_4/targetenc_meal_id_Nov30.pkl"
         )
         self.models["encoder"] = joblib.load(path)
 
@@ -274,6 +274,7 @@ class ModelService:
                 "che": 1,  #'chemicum',
                 "phy": 2,  #'physicum',
                 "exa": 3,  #'exactum'
+                "vik": 4,
             }
         )
 
