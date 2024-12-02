@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader
 
 from src import LitPOSForecast, POSData
 
-BATCH_SIZE = 256
-LR = 9e-4
+BATCH_SIZE = 80
+LR = 3e-4
 THETA = 5
 NUM_EPOCHS = 20
 
@@ -50,7 +50,7 @@ def main():
                 save_top_k=2,
                 monitor="rmse_val",
                 mode="min",
-                dirpath=PATH_DIR_WEIGHTS / MODEL_NAME,
+                dirpath=PATH_DIR_WEIGHTS / MODEL_NAME / version,
                 filename="{epoch:02d}-{rmse_val:.2f}",
             ),
         ],

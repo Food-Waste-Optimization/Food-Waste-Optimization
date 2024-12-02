@@ -86,7 +86,7 @@ class POSForecast(Module):
 
         # Predict pos
         pos = self.lin_pcs(meals).squeeze(-1)
-        pos = pos * mask[:, :, 0]
+        # pos = nn.functional.sigmoid(pos)
 
         return pos
 
@@ -122,8 +122,9 @@ class LitPOSForecast(L.LightningModule):
         tgt = batch["tgt"]
 
         pred = self.forecaster(batch)
+        pred = (1 - batch["mask"].to(torch.float32)) * pred
 
-        loss = nn.functional.mse_loss(pred, tgt_train)
+        loss = nn.functional.l1_loss(pred, tgt_train)
         self.log("train_loss", loss, prog_bar=True, on_step=True)
 
         self.preds_train.append(pred)
@@ -153,6 +154,7 @@ class LitPOSForecast(L.LightningModule):
         tgt = batch["tgt"]
 
         pred = self.forecaster(batch)
+        pred = (1 - batch["mask"].to(torch.float32)) * pred
 
         self.preds_val.append(pred)
         self.tgts_val.append(tgt)
