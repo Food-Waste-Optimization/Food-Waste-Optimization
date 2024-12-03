@@ -38,37 +38,21 @@ def db_connect(func):
 @db_connect
 def fetch_menu(table_name: str = "menu", **kwargs) -> pd.DataFrame:
     query = """
-        with tmp1 as (
+        with tmp as (
             select
-                restaurant
-                , index
-                , sum(fitness) as fitness
+                *,
+                rank() over (PARTITION BY date, restaurant order by fitness) as rank
             from {table}
             where 1=1
                 and restaurant = {restaurant}
                 and "date" < {date_to}
                 and "date" >= {date_from}
-            group by restaurant, index
-            order by fitness
-            limit {num_rows}
-        ), tmp2 as (
-            SELECT
-                *,
-                rank() over (PARTITION BY restaurant order by fitness) as rank
-            from tmp1
         )
             select
-                {table}.index,
-                date,
-                {table}.restaurant,
-                meal_ids,
-                {table}.fitness,
-                tmp2.rank
-            from {table}
-            JOIN tmp2 ON 1=1
-                and {table}.restaurant = tmp2.restaurant
-                and {table}.index = tmp2.index
-            ORDER BY rank, date
+                date, restaurant, meal_ids, fitness
+            from tmp
+            where 1=1
+                and rank <= {num_rows}
         ;
     """
 

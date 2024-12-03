@@ -132,6 +132,9 @@ def recommend_menu():
         num_weeks = int(num_weeks)
         num_rows = int(num_rows)
 
+        date_from = pd.to_datetime(date)
+        date_to = date_from + pd.Timedelta(weeks=num_weeks)
+
         match restaurant.lower():
             case "chemicum":
                 restaurant = "che"
@@ -142,34 +145,23 @@ def recommend_menu():
             case "viikuna":
                 restaurant = "vik"
 
-        payload = {}
-        for i in range(num_weeks):
-            if i == 0:
-                date_from = pd.to_datetime(date)
-            else:
-                date_from = date_from + pd.Timedelta(weeks=1)
-            date_to = date_from + pd.Timedelta(days=5)
+        # Fetch necessary data
+        menus = db.fetch_menu(
+            "menu",
+            date_from=date_from,
+            date_to=date_to,
+            restaurant=restaurant,
+            num_rows=num_rows,
+        )
 
-            # Fetch necessary data
-            menus = db.fetch_menu(
-                "menu",
-                date_from=date_from,
-                date_to=date_to,
-                restaurant=restaurant,
-                num_rows=num_rows,
-            )
-
-            # Make up output
+        # Make up output
+        if len(menus) > 0:
+            menus["date"] = pd.to_datetime(menus["date"]).dt.strftime("%Y-%m-%d")
+            buff = menus[["date", "meal_ids"]].to_dict(orient="records")
+        else:
             buff = []
-            if len(menus) > 0:
-                menus["date"] = pd.to_datetime(menus["date"]).dt.strftime("%Y-%m-%d")
-                for rank in menus["rank"].unique():
-                    df = menus[menus["rank"] == rank]
-                    buff.append(df[["date", "meal_ids"]].to_dict(orient="records"))
 
-            payload[f"week_{i+1}"] = buff
-
-        resp = make_response(payload, 200)
+        resp = make_response(buff, 200)
         resp.headers.set("Content-Type", "application/json")
 
     return resp
