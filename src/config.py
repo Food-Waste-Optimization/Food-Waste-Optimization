@@ -1,5 +1,5 @@
-"""Configure different launch modes.
-    """
+"""Configure different launch modes."""
+
 import os
 
 
@@ -18,7 +18,7 @@ class DefaultConfiguration:
 class DevelopmentConfiguration(DefaultConfiguration):
     DEBUG = True
     CONFIG_MODE = "Development"
-    SECRET_KEY = os.getenv('DEVELOPMENT_KEY')
+    SECRET_KEY = os.getenv("DEVELOPMENT_KEY")
 
 
 class TestingConfiguration(DefaultConfiguration):
@@ -30,14 +30,14 @@ class ProductionConfiguration(DefaultConfiguration):
     DEBUG = False
     TESTING = False
     CONFIG_MODE = "Production"
-    SECRET_KEY = os.getenv('PRODUCTION_KEY')
+    SECRET_KEY = os.getenv("PRODUCTION_KEY")
 
 
 config = {
-    'development': DevelopmentConfiguration,
-    'testing': TestingConfiguration,
-    'production': ProductionConfiguration,
-    'default': DefaultConfiguration
+    "development": DevelopmentConfiguration,
+    "testing": TestingConfiguration,
+    "production": ProductionConfiguration,
+    "default": DefaultConfiguration,
 }
 
 

@@ -1,5 +1,6 @@
-from invoke import task
 import sys
+
+from invoke import task
 
 
 @task
@@ -13,7 +14,10 @@ def start_development(ctx):
 @task
 def start_production(ctx):
     if sys.platform != "win32":
-        ctx.run("FLASK_ENV='production' python3 -m  src.app.index", pty=True)
+        ctx.run(
+            "FLASK_ENV='production' gunicorn --config gunicorn_config.py src.app:app",
+            pty=True,
+        )
     else:
         ctx.run("set FLASK_ENV='production' && python -m src.app.index")
 
@@ -28,7 +32,7 @@ def start_test_environment(ctx):
 
 @task(start_test_environment)
 def test(ctx):
-    ctx.run('pytest')
+    ctx.run("pytest")
 
 
 @task
