@@ -32,4 +32,5 @@ dependencies = [
     "keras>=3.7.0",
     "tensorflow>=2.18.0",
     "einops>=0.8.0",
+    "xlsxwriter>=3.2.0",
 ]
