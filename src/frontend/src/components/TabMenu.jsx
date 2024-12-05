@@ -1,24 +1,23 @@
-import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import { styled } from '@mui/material/styles';
+import { useState } from "react";
+import Box from "@mui/material/Box";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import { styled } from "@mui/material/styles";
 
-import LandingPage from './LandingPage.jsx';
-import RecommendationDaily from './RecommendationDaily.jsx';
-import RecommendationWeekly from './RecommendationWeekly';
+import LandingPage from "./LandingPage.jsx";
+import Dashboard from "./Dashboard";
 
-import logofood from '../img/logo_foodwaste.png';
+import logofood from "../img/logo_foodwaste.png";
 
 const CustomTabs = styled(Tabs)({
-  '& .MuiTabs-indicator': {
-    backgroundColor: '#155C2C',
+  "& .MuiTabs-indicator": {
+    backgroundColor: "#155C2C",
   },
 });
 
 const CustomTab = styled(Tab)({
-  '&.Mui-selected': {
-    color: '#155C2C', 
+  "&.Mui-selected": {
+    color: "#155C2C",
   },
 });
 
@@ -26,11 +25,7 @@ function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
 
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      {...other}
-    >
+    <div role="tabpanel" hidden={value !== index} {...other}>
       {value === index && (
         <Box sx={{ pt: 1, px: 3 }}>
           <div>{children}</div>
@@ -48,17 +43,13 @@ export default function TabMenu() {
   };
 
   const handleSwitchTab = () => {
-    setValue(1); 
+    setValue(1);
   };
 
   return (
-
     <div className="min-h-screen bg-emerald-50 p-4">
-
       <div className="flex flex-col md:flex-row items-center justify-between px-4 pt-4 w-full">
-     
         <div className="flex-grow mb-0 md:mb-0 pb-4">
-
           <CustomTabs
             value={value}
             onChange={handleChange}
@@ -67,26 +58,69 @@ export default function TabMenu() {
             allowScrollButtonsMobile
           >
             <CustomTab label="About" />
-            <CustomTab label="Weekly recommendation" />
-            <CustomTab label="Daily recommendation" />
+            <CustomTab label="Recommendation System" />
           </CustomTabs>
-
         </div>
 
         <div className="text-center md:text-right mb-4 md:mb-0">
-
-          <h1 className="text-xl font-bold text-gray-800 leading-tight">Unicafe Food Waste Optimization</h1>
-
-          <h3 className="text-lg text-gray-600 mt-2">AI-assisted recommendation system for meal planning in YLVA restaurants</h3>
-
+          <h1 className="text-2xl font-bold text-[#155C2C] px-2 pt-2">
+            Unicafe Meal Planner
+          </h1>
+          <div className="flex items-end space-x-2 pt-2 justify-start">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="75"
+              height="50"
+              viewBox="-30 0 100 100"
+              className="m-0"
+            >
+              <path
+                d="M-20,50 C0,20, 30,20, 20,50 C10,80, -30,60, -20,50 Z"
+                fill="#66BFA2"
+              />
+            </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="60"
+              height="50"
+              viewBox="-30 0 100 100"
+              className="m-0"
+            >
+              <path
+                d="M-30,40 C-20,15, 20,15, 10,40 C0,65, -20,65, -30,40 Z"
+                fill="#A3D9A5"
+              />
+            </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="80"
+              height="50"
+              viewBox="-30 0 140 100"
+              className="m-0"
+            >
+              <path
+                d="M-30,30 C-20,5, 60,5, 40,30 C20,50, 0,70, -30,30 Z"
+                fill="#C8E6C9"
+              />
+            </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="60"
+              height="50"
+              viewBox="-30 0 100 100"
+              className="m-0"
+            >
+              <path
+                d="M-30,20 C-20,5, 10,5, 0,20 C-10,35, -30,30, -30,20 Z"
+                fill="#D1E7DD"
+              />
+            </svg>
+          </div>
         </div>
 
         <div className="flex items-center ml-4">
-
           <img src={logofood} width={68} alt="Food Logo" />
-
         </div>
-
       </div>
 
       <CustomTabPanel value={value} index={0}>
@@ -94,14 +128,8 @@ export default function TabMenu() {
       </CustomTabPanel>
 
       <CustomTabPanel value={value} index={1}>
-        <RecommendationWeekly />
+        <Dashboard />
       </CustomTabPanel>
-
-      <CustomTabPanel value={value} index={2}>
-        <RecommendationDaily />
-      </CustomTabPanel>
-
     </div>
-
   );
 }
