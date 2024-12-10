@@ -62,15 +62,32 @@ function Dashboard() {
         return response.json();
       })
       .then((data) => {
-        const structuredMealDetails = data.reduce((acc, dayData) => {
-          const existingDay = acc.find((entry) => entry.date === dayData.date);
-          if (existingDay) {
-            existingDay.meal_ids.push(dayData.meal_ids);
-          } else {
-            acc.push({ date: dayData.date, meal_ids: [dayData.meal_ids] });
-          }
-          return acc;
-        }, []);
+        // Data processing to match the new structure (weeks-based)
+        const structuredMealDetails = Object.keys(data).reduce(
+          (acc, weekKey) => {
+            const weekData = data[weekKey];
+
+            // Process each week
+            weekData.forEach((dailyMeals) => {
+              dailyMeals.forEach((mealDay) => {
+                const existingDay = acc.find(
+                  (entry) => entry.date === mealDay.date
+                );
+                if (existingDay) {
+                  existingDay.meal_ids.push(mealDay.meal_ids);
+                } else {
+                  acc.push({
+                    date: mealDay.date,
+                    meal_ids: [mealDay.meal_ids],
+                  });
+                }
+              });
+            });
+
+            return acc;
+          },
+          []
+        );
 
         setMealDetails(structuredMealDetails);
         setLabels(structuredMealDetails.map((entry) => entry.date));

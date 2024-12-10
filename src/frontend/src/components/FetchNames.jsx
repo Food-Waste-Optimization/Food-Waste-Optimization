@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 import RecGrid from "./RecGrid";
-import Graph from "./Graph";
 import MealStats from "./MealStats";
 
 const FetchNames = ({
@@ -22,16 +21,25 @@ const FetchNames = ({
       const response1 = await axios.get(
         `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${restaurant}&date=${selectedDate}&num_rows=${numRows}&num_weeks=${numWeeks}`
       );
-      console.log("Full response from first API:", response1.data);
+      console.log("Full response from first API:", response1.data); // Log the entire response for debugging
 
-      if (!response1.data || response1.data.length === 0) {
+      if (!response1.data || Object.keys(response1.data).length === 0) {
         throw new Error(
-          "No meals found in the response or the array is empty."
+          "No meals found in the response or the object is empty."
         );
       }
 
-      // Extract the meal_ids from each item in the response
-      const allMealIds = response1.data.flatMap((item) => item.meal_ids); // Flatten meal_ids from each object in the array
+      // Flatten the structure of the meal IDs from the first API response
+      const allMealIds = Object.values(response1.data).flatMap((weeks) =>
+        weeks.flatMap(
+          (week) => week.flatMap((day) => day.meal_ids) // Flatten all the meal_ids arrays
+        )
+      );
+
+      if (allMealIds.length === 0) {
+        throw new Error("No meal IDs found in the response.");
+      }
+
       setMealIds(allMealIds); // Update state with the meal IDs
     } catch (error) {
       console.error("Error fetching meal IDs:", error);
@@ -60,13 +68,19 @@ const FetchNames = ({
       // Create a map of meal_id -> meal_name
       const mealMap = new Map();
       response2.data.forEach((meal) => {
+        console.log("Mapping meal:", meal); // Log the meal being mapped
         mealMap.set(meal.meal_id, meal.name);
       });
 
-      // Map the meal names based on the meal IDs
+      // Ensure that mealIds match up with names in the correct order
       const mealNamesFromApi = mealIds.map((id) => {
-        // If no name is found for a meal_id, show the meal_id itself
-        return mealMap.has(id) ? mealMap.get(id) : `Meal ID ${id}`;
+        if (mealMap.has(id)) {
+          console.log(`Matched meal_id: ${id} -> ${mealMap.get(id)}`); // Log the match for debugging
+          return mealMap.get(id);
+        } else {
+          console.log(`Meal ID ${id} not found in mealMap`); // Log any mismatches
+          return `Meal ID ${id}`;
+        }
       });
 
       console.log("Mapped meal names:", mealNamesFromApi);
@@ -78,7 +92,7 @@ const FetchNames = ({
   };
 
   useEffect(() => {
-    getMealIds(); // Call getMealIds when the component mounts
+    getMealIds(); // Call getMealIds when the component mounts or dependencies change
   }, [restaurant, selectedDate, numRows, numWeeks]);
 
   useEffect(() => {

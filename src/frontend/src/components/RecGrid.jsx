@@ -20,13 +20,12 @@ const CustomPagination = styled(Pagination)(({ theme }) => ({
 }));
 
 export default function RecGrid({ mealDetails, mealNames, restaurant }) {
-  const [selectedWeek, setSelectedWeek] = useState(0); // Track selected week (tab)
-  const [paginationState, setPaginationState] = useState({}); // Store pagination state for each week and day
-  const [mealsData, setMealsData] = useState([]); // State to store fetched meal data
+  const [selectedWeek, setSelectedWeek] = useState(0);
+  const [paginationState, setPaginationState] = useState({});
+  const [mealsData, setMealsData] = useState([]);
 
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-  // Fetch meal data based on the restaurant
   useEffect(() => {
     const fetchMealData = async () => {
       try {
@@ -45,19 +44,19 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
     }
   }, [restaurant]);
 
-  // Flatten all meal IDs for mapping
+  // Flatten the meal details (this is done on mealDetails prop)
   const flattenedMealIds = mealDetails.reduce((acc, mealForDay) => {
-    mealForDay.meal_ids.forEach((meal) => acc.push(...meal)); // Flatten each day's meal_ids
+    mealForDay.meal_ids.forEach((mealArray) => acc.push(...mealArray));
     return acc;
   }, []);
 
-  // Map meal IDs to meal names
+  // Create a map to associate mealId to mealName
   const mealIdToNameMap = new Map();
-  flattenedMealIds.forEach((mealId, index) => {
-    mealIdToNameMap.set(mealId, mealNames[index]);
+  mealsData.forEach((meal) => {
+    mealIdToNameMap.set(meal.meal_id, meal.name);
   });
 
-  // Create a map of meal ID to Kela eligibility status
+  // Create maps for Kela and mealType information
   const mealKelaMap = new Map();
   mealsData.forEach((meal) => {
     mealKelaMap.set(meal.meal_id, meal.is_kela);
@@ -68,6 +67,7 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
     mealTypeMap.set(meal.meal_id, meal.meal_type);
   });
 
+  // Group the meals into weeks for tab display
   const weeks = [];
   for (let i = 0; i < mealDetails.length; i += 5) {
     weeks.push(mealDetails.slice(i, i + 5));
@@ -179,7 +179,7 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
   };
 
   return (
-    <div className="p-0">
+    <div className="p-0 overflow-x-hidden">
       <Box
         sx={{
           display: "flex",
@@ -231,11 +231,12 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
+              gridTemplateColumns: "repeat(5, 1fr)", // 5 cards next to each other
               gap: "10px",
               marginLeft: "20px",
               marginRight: "20px",
               marginBottom: "30px",
+              maxWidth: "100%",
             }}
           >
             {weekData.map((mealForDay, dayIndex) => {
@@ -265,6 +266,12 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
                     padding: "10px",
                     borderRadius: "8px",
                     boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                    height: "auto",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
+                    wordWrap: "break-word",
+                    overflowWrap: "break-word",
                   }}
                 >
                   <strong>{daysOfWeek[dayIndex]}</strong>
@@ -302,6 +309,8 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
                             justifyContent: "space-between",
                             alignItems: "center",
                             flexWrap: "wrap",
+                            wordWrap: "break-word",
+                            overflowWrap: "break-word",
                           }}
                         >
                           <span>
