@@ -4,6 +4,19 @@ import { styled } from "@mui/material/styles";
 import jsPDF from "jspdf";
 
 const CustomPagination = styled(Pagination)(({ theme }) => ({
+  display: "flex",
+  flexWrap: "nowrap",
+  "& .MuiPaginationItem-root": {
+    minWidth: "26px",
+    height: "26px",
+    margin: "0 2px",
+    fontSize: "0.8rem",
+    padding: "2px",
+    color: "#555",
+    "&:hover": {
+      backgroundColor: "rgba(0, 0, 0, 0.1)",
+    },
+  },
   "& .MuiPaginationItem-root.Mui-selected": {
     backgroundColor: "#3C7A5A",
     color: "#fff",
@@ -11,11 +24,16 @@ const CustomPagination = styled(Pagination)(({ theme }) => ({
       backgroundColor: "#3C7A5A",
     },
   },
-  "& .MuiPaginationItem-root": {
+  "& .MuiPaginationItem-icon": {
+    fontSize: "0.9rem",
     color: "#555",
     "&:hover": {
-      backgroundColor: "rgba(0, 0, 0, 0.1)",
+      color: "#3C7A5A",
     },
+  },
+  "& .MuiPaginationItem-ellipsis": {
+    padding: "0 2px",
+    color: "#555",
   },
 }));
 
@@ -117,7 +135,7 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
     let currentY = 20;
     const pageHeight = doc.internal.pageSize.height;
 
-    const location = "Exactum";
+    const location = restaurant;
     const selectedWeeksCount = weeks.length;
 
     const fileName = `MenuPlan_${location}_${selectedWeeksCount}weeks.pdf`;
