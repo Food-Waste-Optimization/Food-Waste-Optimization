@@ -1,46 +1,54 @@
 import torch
-import torch.nn.functional as F
 from polars import DataFrame
 from torch.utils.data import Dataset
 
 
+def _fill_none(x):
+    return x if x is not None else 0
+
+
+def _create_tensor(col: str, record: dict):
+    return torch.tensor(
+        [
+            _fill_none(record[f"{col}_1"]),
+            _fill_none(record[f"{col}_2"]),
+            _fill_none(record[f"{col}_3"]),
+            _fill_none(record[f"{col}_4"]),
+        ],
+        dtype=torch.float32,
+    )
+
+
+def _create_mask(record: dict):
+    return torch.tensor(
+        [
+            record["dist_1"] is None,
+            record["dist_2"] is None,
+            record["dist_3"] is None,
+            record["dist_4"] is None,
+        ],
+        dtype=torch.bool,
+    )
+
+
 class POSData(Dataset):
-    def __init__(self, ds: DataFrame, theta: int = 5) -> None:
+    def __init__(self, ds: DataFrame) -> None:
         super().__init__()
 
         self._ds = ds
-        self.theta = theta
 
     def __getitem__(self, idx):
         record = self._ds.row(idx, named=True)
 
         restaurant = torch.tensor(record["restaurant_enc"], dtype=torch.int32)
 
-        n = len(record["meal_id_enc"])
-        n_zeros_padded = self.theta - n
+        meal = _create_tensor("meal_id_sim_enc", record).type(torch.int32)
+        meal_type = _create_tensor("meal_type_enc", record).type(torch.int32)
+        serv_pcn = _create_tensor("serving_percent", record)
+        sim = _create_tensor("dist", record)
+        tgt = _create_tensor("pcs_scaled", record)
 
-        meal = F.pad(
-            torch.tensor(record["meal_id_enc"], dtype=torch.float32),
-            (0, n_zeros_padded),
-        )
-        meal_type = F.pad(
-            torch.tensor(record["meal_type_enc"], dtype=torch.int32),
-            (0, n_zeros_padded),
-        )
-        sim = F.pad(
-            torch.tensor(record["sim"], dtype=torch.float32), (0, n_zeros_padded)
-        )
-        tgt_train = F.pad(
-            torch.tensor(record["pcs_enc"], dtype=torch.float32),
-            (0, n_zeros_padded),
-        )
-        tgt = F.pad(
-            torch.tensor(record["pcs"], dtype=torch.float32), (0, n_zeros_padded)
-        )
-
-        # mask = torch.zeros((THETA, THETA), dtype=torch.float32)
-        # mask[:n, :n] = 1.0
-        mask = (meal == 0).clone().detach()
+        mask = _create_mask(record)
 
         date = torch.tensor(
             [
@@ -61,7 +69,7 @@ class POSData(Dataset):
             "mask": mask,
             "restaurant": restaurant,
             "date": date,
-            "tgt_train": tgt_train,
+            "serv_pcn": serv_pcn,
             "tgt": tgt,
         }
 
