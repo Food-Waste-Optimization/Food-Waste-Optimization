@@ -1,5 +1,6 @@
 import lightning as L
 import torch
+from sklearn.metrics import r2_score, root_mean_squared_error
 from torch import Tensor, nn
 from torch.nn import Module
 from torch.optim import AdamW
@@ -139,22 +140,15 @@ class LitPOSForecast(L.LightningModule):
         return loss
 
     def on_train_epoch_end(self) -> None:
-        preds = torch.concat(self.preds_train, dim=0).detach().cpu()
-        preds = torch.tensor(
-            self.scaler.inverse_transform(preds),
-            dtype=torch.float32,
-            device=self.device,
-        )
+        preds = self.scaler.inverse_transform(
+            torch.concat(self.preds_train, dim=0).detach().cpu()
+        ).flatten()
+        tgts = self.scaler.inverse_transform(
+            torch.concat(self.tgts_train, dim=0).detach().cpu()
+        ).flatten()
 
-        tgts = torch.concat(self.tgts_train, dim=0).detach().cpu()
-        tgts = torch.tensor(
-            self.scaler.inverse_transform(preds),
-            dtype=torch.float32,
-            device=self.device,
-        )
-
-        rmse = torch.sqrt(self.mse(preds, tgts))
-        r2 = self.r2(preds, tgts)
+        rmse = root_mean_squared_error(preds, tgts)
+        r2 = r2_score(preds, tgts)
 
         self.log("rmse_train", rmse, on_epoch=True)
         self.log("r2_train", r2, on_epoch=True)
@@ -170,21 +164,22 @@ class LitPOSForecast(L.LightningModule):
         self.tgts_val.append(tgt)
 
     def on_validation_epoch_end(self) -> None:
-        preds = torch.tensor(
-            self.scaler.inverse_transform(torch.concat(self.preds_val, dim=0).cpu()),
-            dtype=torch.float32,
-            device=self.device,
-        )
+        preds = self.scaler.inverse_transform(
+            torch.concat(self.preds_val, dim=0).detach().cpu()
+        ).flatten()
+        tgts = self.scaler.inverse_transform(
+            torch.concat(self.tgts_val, dim=0).detach().cpu()
+        ).flatten()
 
-        tgts = torch.concat(self.tgts_val, dim=0)
-
-        rmse = torch.sqrt(self.mse(preds, tgts))
-        r2 = self.r2(preds, tgts)
+        rmse = root_mean_squared_error(preds, tgts)
+        r2 = r2_score(preds, tgts)
+        # rmse = torch.sqrt(self.mse(preds, tgts))
+        # r2 = self.r2(preds, tgts)
 
         self.log("rmse_val", rmse, on_epoch=True)
         self.log("r2_val", r2, on_epoch=True)
 
-        # self.preds_val, self.tgts_val = [], []
+        self.preds_val, self.tgts_val = [], []
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=self.lr)
