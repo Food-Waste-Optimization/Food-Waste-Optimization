@@ -2544,7 +2544,7 @@ version = "1.20.0"
 description = "Blazingly fast DataFrame library"
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
+groups = ["main"]
 markers = "python_version >= \"3.12\" or python_version == \"3.11\""
 files = [
     {file = "polars-1.20.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:9a313e10ea80b99a0d32bfb942b2260b9658155287b0c2ac5876323acaff4f2c"},
@@ -4427,4 +4427,4 @@ scikit-learn = ["scikit-learn"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "4ea17306f7c1f943bbeb727be7fb280f3177412ff98a295bb124f8cb559a456c"
+content-hash = "c8439bd8d026f95d53325c2e6e13fda0535febdc0c8060996f6c39f020d9b59d"
