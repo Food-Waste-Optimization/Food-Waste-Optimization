@@ -86,6 +86,8 @@ def forecast_receipt():
             df = df.merge(co2, on="meal_id", how="left").merge(
                 biowaste, on="meal_id", how="left"
             )
+            df["co2"].fillna(0.4, inplace=True)
+            df["waste"].fillna(0.01, inplace=True)
 
             out = {"meals": df.to_dict(orient="records"), "whole": pcs_whole}
 

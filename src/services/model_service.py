@@ -1,89 +1,56 @@
 """Creates ModelService class that allows requests to AI models."""
 
 import os
-from itertools import permutations
 from pathlib import Path
 
-import joblib
+import lightgbm
 import numpy as np
 import pandas as pd
+import polars as pl
 
 # from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
-from pandas import DataFrame
-from xgboost import XGBRegressor
 
 from . import db
 
+dim_mealtype2id = pl.DataFrame(
+    [
+        {"meal_type": "meat", "meal_type_enc": 0},
+        {"meal_type": "vegetarian", "meal_type_enc": 1},
+        {"meal_type": "chicken", "meal_type_enc": 2},
+        {"meal_type": "fish", "meal_type_enc": 3},
+        {"meal_type": "vegan", "meal_type_enc": 3},
+    ]
+)
+dim_restaurant2id = pl.DataFrame(
+    [
+        {"restaurant": "phy", "restaurant_enc": 0},
+        {"restaurant": "che", "restaurant_enc": 1},
+        {"restaurant": "exa", "restaurant_enc": 2},
+        {"restaurant": "vik", "restaurant_enc": 3},
+    ]
+)
+
+
 cols_X = [
+    "meal_id_right",
+    "pcs_mean",
+    "dist",
+    "meal_type_enc",
+    "restaurant_enc",
+    "serving_percent",
     "weekday_sin",
     "weekday_cos",
     "day_sin",
     "day_cos",
     "month_sin",
     "month_cos",
-    "restaurant",
-    "meal_id_enc",
-    "meal_type",
-    "pcs_mean",
-    "meal_id_other1_enc",
-    "meal_id_other2_enc",
-    "meal_id_other3_enc",
-    "meal_id_other4_enc",
-    "meal_type_other1",
-    "meal_type_other2",
-    "meal_type_other3",
-    "meal_type_other4",
-    "pcs_mean_other1",
-    "pcs_mean_other2",
-    "pcs_mean_other3",
-    "pcs_mean_other4",
 ]
-
-cols = [
-    "index",
-    "date",
-    "restaurant",
-    "meal_id",
-    "meal_type",
-    "pcs_mean",
-    "idx_tup",
-    "meal_id_other1_enc",
-    "meal_id_other2_enc",
-    "meal_id_other3_enc",
-    "meal_id_other4_enc",
-    "meal_type_other1",
-    "meal_type_other2",
-    "meal_type_other3",
-    "meal_type_other4",
-    "pcs_mean_other1",
-    "pcs_mean_other2",
-    "pcs_mean_other3",
-    "pcs_mean_other4",
-]
-
 cols_cat = [
-    "restaurant",
-    "meal_type",
-    "meal_type_other1",
-    "meal_type_other2",
-    "meal_type_other3",
-    "meal_type_other4",
+    "meal_id_right",
+    "meal_type_enc",
+    "restaurant_enc",
 ]
-map_mealtype = {
-    "meat": 1,  # 'meat',
-    "fish": 2,  # 'fish',
-    "vegan": 3,  # 'vegan',
-    "vegetarian": 4,  # 'vegetarian',
-    "chicken": 5,  # 'chicken'
-}
-
-map_restaurantcode2str = {
-    "che": "Chemicum",
-    "exa": "Exactum",
-    "phy": "Physicum",
-    "vik": "Vikki",
-}
 
 
 class ModelService:
@@ -122,17 +89,20 @@ class ModelService:
     def _load_model_phase4(self):
         logger.info("Load trained model for per-meal POS forecast and encoder")
 
-        path = ModelService.PATH_ROOT_TRAINED_MODEL / "pos/phase_4/xgb_cat_Nov30.json"
-        self.models["per_day_POS"] = XGBRegressor(
-            tree_method="hist", enable_categorical=True
-        )
-        self.models["per_day_POS"].load_model(path)
+        path = ModelService.PATH_ROOT_TRAINED_MODEL / "pos/phase_4/lightbgm_Jan21.txt"
+        self.models["per_day_POS"] = lightgbm.Booster(model_file=path)
 
         path = (
             ModelService.PATH_ROOT_TRAINED_MODEL
-            / "encoder/phase_4/targetenc_meal_id_Nov30.pkl"
+            / "encoder/phase_4/dim_meal_embds_Jan21.parquet"
         )
-        self.models["encoder"] = joblib.load(path)
+        self.meal_embds = pl.read_parquet(path)
+
+        path = (
+            ModelService.PATH_ROOT_TRAINED_MODEL
+            / "encoder/phase_4/dim_topK_Jan21.parquet"
+        )
+        self.topK = pl.read_parquet(path)
 
     def _post_process(self, prediction):
         if prediction <= 0:
@@ -142,7 +112,7 @@ class ModelService:
 
         return prediction
 
-    def forecast_pos(self, meals: DataFrame) -> DataFrame | None:
+    def forecast_pos(self, meals: pd.DataFrame) -> pd.DataFrame | None:
         """Predict the POS for each meal in a specific date given the list of meal ids
 
         Args:
@@ -153,156 +123,70 @@ class ModelService:
         """
 
         # Read from database the info of given meal_ids
-        dim_meals = db.fetch_meal_info_with_ids(meal_ids=meals["meal_id"].tolist())
+        dim_meals = pl.from_dataframe(
+            db.fetch_meal_info_with_ids(meal_ids=meals["meal_id"].tolist())
+        )
 
         if len(dim_meals) == 0:
             return None
 
-        feat = (
-            meals.merge(dim_meals, left_on="meal_id", right_on="id", how="left")
-            .copy()
-            .drop(columns="id")
+        meal_types = dim_meals.select(
+            pl.col("id").alias("meal_id"), pl.col("type").alias("meal_type")
         )
 
-        # Create columns for other and encode them
-        meal_ids = (
-            meals.groupby(["index", "date", "restaurant"])["meal_id"]
-            .apply(lambda x: list(x))
-            .reset_index()
-            .rename(columns={"meal_id": "meal_ids"})
-        )
-        feat = feat.merge(meal_ids, on=["index", "date", "restaurant"], how="left")
-
-        # Create columns for other and encode them
-        THETA = 5
-        records = []
-        for r in feat.itertuples():
-            ids = set(r.meal_ids)
-            ids.remove(r.meal_id)
-
-            for idx_tup, tup in enumerate(permutations(ids)):
-                tup = [*tup]
-
-                # pad
-                if len(tup) < THETA - 1:
-                    tup.extend([0] * (THETA - 1 - len(tup)))
-
-                for idx, m_id in enumerate(tup):
-                    records.append(
-                        {
-                            "index": r.index,
-                            "date": r.date,
-                            "restaurant": r.restaurant,
-                            "meal_id": r.meal_id,
-                            "meal_type": r.type,
-                            "pcs_mean": r.mean,
-                            "idx_tup": idx_tup,
-                            "other": idx + 1,
-                            "meal_id_other": m_id,
-                        }
-                    )
+        # logger.debug(meal_types)
+        # logger.debug(pl.from_dataframe(meals))
 
         feat = (
-            pd.DataFrame.from_records(records)
-            .merge(dim_meals, how="left", left_on="meal_id_other", right_on="id")
-            .drop(columns="id")
-            .rename(columns={"type": "meal_type_other", "mean": "pcs_mean_other"})
+            pl.from_dataframe(meals)
+            .join(meal_types, on="meal_id", how="left")
+            .join(self.topK, on=["restaurant", "meal_type"], how="left")
+            .join(self.meal_embds, on=["meal_id", "meal_id_right"], how="left")
         )
 
-        encoded = self.models["encoder"].transform(
-            feat["meal_id_other"].to_numpy().reshape(-1, 1)
-        )
-        mask = (feat["meal_id_other"] != 0).astype(np.int32)
-        feat["meal_id_other_enc"] = encoded.squeeze() * mask
+        # Encode restaurant
+        feat = feat.join(dim_restaurant2id, on="restaurant")
 
-        feat["meal_type_other"] = feat["meal_type_other"].map(map_mealtype)
+        # Encode meal_type
+        feat = feat.join(dim_mealtype2id, on="meal_type")
 
-        feat = feat.fillna(0)
-
-        cols_idx = [
-            "index",
-            "date",
-            "restaurant",
-            "meal_id",
-            "meal_type",
-            "pcs_mean",
-            "idx_tup",
-        ]
-        feat = feat.pivot(
-            index=cols_idx,
-            columns="other",
-            values=["pcs_mean_other", "meal_type_other", "meal_id_other_enc"],
-        ).reset_index()
-
-        feat.columns = cols
-
-        feat.drop(columns="idx_tup", inplace=True)
-
-        # Encode main columns
-        feat["meal_type"] = feat["meal_type"].map(map_mealtype)
-
-        def _encode_date_cyclic(
-            t, period_week: int = 7, period_day: int = 31, period_month: int = 12
-        ):
-            def get_sin_encoding(x, period: int):
-                return np.sin(2 * np.pi * x / period)
-
-            def get_cos_encoding(x, period: int):
-                return np.cos(2 * np.pi * x / period)
-
-            return pd.Series(
-                {
-                    "weekday_sin": get_sin_encoding(t.weekday(), period_week),
-                    "weekday_cos": get_cos_encoding(t.weekday(), period_week),
-                    "day_sin": get_sin_encoding(t.day, period_day),
-                    "day_cos": get_cos_encoding(t.day, period_day),
-                    "month_sin": get_sin_encoding(t.month, period_month),
-                    "month_cos": get_cos_encoding(t.month, period_month),
-                }
+        # Encode datetime
+        feat = (
+            feat.with_columns(
+                pl.col("date").dt.weekday().alias("weekday"),
+                pl.col("date").dt.day().alias("day"),
+                pl.col("date").dt.month().alias("month"),
             )
-
-        datetime_encoded = feat["date"].apply(_encode_date_cyclic)
-        feat = pd.concat([feat, datetime_encoded], axis=1)
-
-        feat["meal_id_enc"] = self.models["encoder"].transform(
-            feat["meal_id"].to_numpy().reshape(-1, 1)
+            .with_columns(
+                (pl.col("weekday") * 2 * np.pi / 7).sin().alias("weekday_sin"),
+                (pl.col("weekday") * 2 * np.pi / 7).cos().alias("weekday_cos"),
+                (pl.col("day") * 2 * np.pi / 31).sin().alias("day_sin"),
+                (pl.col("day") * 2 * np.pi / 31).cos().alias("day_cos"),
+                (pl.col("month") * 2 * np.pi / 12).sin().alias("month_sin"),
+                (pl.col("month") * 2 * np.pi / 12).cos().alias("month_cos"),
+            )
+            .drop("weekday", "day", "month")
         )
 
-        feat["restaurant_raw"] = feat["restaurant"].copy()
-        feat["restaurant"] = feat["restaurant"].map(
-            {
-                "che": 1,  #'chemicum',
-                "phy": 2,  #'physicum',
-                "exa": 3,  #'exactum'
-                "vik": 4,
-            }
-        )
+        # Add `serving_percent`
+        feat = feat.with_columns(pl.lit(1.0).alias("serving_percent"))
 
-        # Assign categorical column type
+        # Prepare data for inference
+        X = feat.select(cols_X).to_pandas()
+
         for col in cols_cat:
-            feat[col] = feat[col].astype("category")
+            X[col] = X[col].astype("category")
 
-        # Keep important columns
-        X = feat[cols_X]
+        # Predict
+        pcs_pred = np.clip(self.models["per_day_POS"].predict(X), a_min=0, a_max=None)
+        feat = feat.with_columns(pl.Series(pcs_pred).alias("pcs_pred"))
 
-        feat["pcs_pred"] = np.clip(
-            self.models["per_day_POS"].predict(X),
-            a_min=0,
-            a_max=None,
+        output = (
+            feat.group_by(["index", "date", "restaurant", "meal_id"])
+            .agg(
+                pl.col("pcs_pred").mean(),
+            )
+            .to_pandas()
         )
-
-        pred = (
-            feat.groupby(["index", "date", "restaurant_raw", "meal_id"], observed=True)[
-                "pcs_pred"
-            ]
-            .mean()
-            .reset_index()
-            .rename(columns={"restaurant_raw": "restaurant"})
-        )
-
-        # Post process
-        pred.rename(columns={"pcs_pred": "pcs"}, inplace=True)
-        pred["pcs"] = pred["pcs"].clip(0).astype(int)
-        output = pred[["meal_id", "pcs"]]
 
         return output
