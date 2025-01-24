@@ -146,7 +146,7 @@ function Dashboard() {
               <MenuItem value="Physicum">
                 <strong>Physicum</strong>
               </MenuItem>
-              <MenuItem value="Viikki">
+              <MenuItem value="Viikuna">
                 <strong>Viikki</strong>
               </MenuItem>
             </Select>
