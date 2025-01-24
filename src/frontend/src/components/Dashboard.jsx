@@ -7,11 +7,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers";
-import { Box, Tabs, Tab, Pagination } from "@mui/material";
+import { InputLabel } from "@mui/material";
 import dayjs from "dayjs";
 
-import { Line } from "react-chartjs-2";
-import RecGrid from "./RecGrid";
 import FetchNames from "./FetchNames.jsx";
 
 function Dashboard() {
@@ -62,7 +60,7 @@ function Dashboard() {
         return response.json();
       })
       .then((data) => {
-        // Data processing to match the new structure (weeks-based)
+        // Data processing (weeks-based)
         const structuredMealDetails = Object.keys(data).reduce(
           (acc, weekKey) => {
             const weekData = data[weekKey];
@@ -101,21 +99,79 @@ function Dashboard() {
 
   return (
     <>
-      <div className="bg-[#155C2C] w-full rounded-lg p-8">
-        <div className="flex flex-col md:flex-row justify-between items-start h-full">
-          <div className="bg-gray-100 shadow-lg rounded-lg p-6 w-full md:w-[24%] min-h-[500px]">
-            <div className="p-4">
-              <h1 className="text-xl font-bold text-gray-800">
-                Select location, date, weeks, options per day
-              </h1>
+      <div className="bg-white w-full rounded-lg p-8">
+        <div className="flex justify-between items-center w-full gap-4">
+          <FormControl
+            variant="outlined"
+            fullWidth
+            sx={{
+              flexBasis: "22%",
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": {
+                  borderColor: "#828282",
+                  borderWidth: "1px",
+                },
+                "&:hover fieldset": {
+                  borderColor: "#828282",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#000",
+                  borderWidth: "1px",
+                },
+              },
+            }}
+          >
+            <InputLabel
+              sx={{
+                backgroundColor: "#fff",
+                paddingLeft: "4px",
+                paddingRight: "4px",
+              }}
+            >
+              Restaurant
+            </InputLabel>
+            <Select
+              value={restaurant}
+              onChange={(e) => {
+                setRestaurant(e.target.value);
+                setShowFetchNames(false);
+              }}
+            >
+              <MenuItem value="Chemicum">
+                <strong>Chemicum</strong>
+              </MenuItem>
+              <MenuItem value="Exactum">
+                <strong>Exactum</strong>
+              </MenuItem>
+              <MenuItem value="Physicum">
+                <strong>Physicum</strong>
+              </MenuItem>
+              <MenuItem value="Viikki">
+                <strong>Viikki</strong>
+              </MenuItem>
+            </Select>
+          </FormControl>
 
-              <FormControl
-                fullWidth
-                variant="outlined"
+          {/* Date Picker */}
+          <FormControl
+            variant="outlined"
+            fullWidth
+            sx={{
+              flexBasis: "22%",
+            }}
+          >
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                value={selectedDate}
+                onChange={handleDateChange}
+                shouldDisableDate={(date) => {
+                  const today = dayjs();
+                  const isNotMonday = date.day() !== 1;
+
+                  return isNotMonday;
+                }}
                 sx={{
-                  marginTop: 2,
-                  marginBottom: 2,
-                  "& .MuiOutlinedInput-root": {
+                  "& .MuiInputBase-root": {
                     "& fieldset": {
                       borderColor: "#828282",
                       borderWidth: "1px",
@@ -124,192 +180,142 @@ function Dashboard() {
                       borderColor: "#828282",
                     },
                     "&.Mui-focused fieldset": {
-                      borderColor: "#828282",
+                      borderColor: "#000",
                       borderWidth: "1px",
                     },
                   },
-                  "& .MuiOutlinedInput-input": {
-                    outline: "none",
-                  },
                 }}
-                className="outline-none"
-              >
-                <Select
-                  value={restaurant}
-                  onChange={(e) => {
-                    setRestaurant(e.target.value);
-                    setShowFetchNames(false);
-                  }}
-                  defaultValue=""
-                >
-                  <MenuItem value="Chemicum">
-                    <strong>Chemicum</strong>
-                  </MenuItem>
-                  <MenuItem value="Exactum">
-                    <strong>Exactum</strong>
-                  </MenuItem>
-                  <MenuItem value="Physicum">
-                    <strong>Physicum</strong>
-                  </MenuItem>
-                  <MenuItem value="Viikuna">
-                    <strong>Viikuna</strong>
-                  </MenuItem>
-                </Select>
-              </FormControl>
+              />
+            </LocalizationProvider>
+          </FormControl>
 
-              <FormControl
-                fullWidth
-                variant="outlined"
-                sx={{
-                  marginBottom: 2,
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": {
-                      borderColor: "#828282",
-                      borderWidth: "1px",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#828282",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#828282",
-                      borderWidth: "1px",
-                    },
-                  },
-                  "& .MuiOutlinedInput-input": {
-                    outline: "none",
-                  },
-                }}
-                className="outline-none"
-              >
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    value={selectedDate}
-                    onChange={handleDateChange}
-                    shouldDisableDate={(date) => {
-                      const today = dayjs();
-                      const isPastDate = date.isBefore(today, "day");
-                      const isNotMonday = date.day() !== 1;
-                      const isNextYear = date.isAfter("2024-12-24", "day");
-                      return isPastDate || isNotMonday || isNextYear;
-                    }}
-                  />
-                </LocalizationProvider>
-              </FormControl>
-
-              <FormControl
-                fullWidth
-                variant="outlined"
-                sx={{
-                  marginBottom: 2,
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": {
-                      borderColor: "#828282",
-                      borderWidth: "1px",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#828282",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#828282",
-                      borderWidth: "1px",
-                    },
-                  },
-                  "& .MuiOutlinedInput-input": {
-                    outline: "none",
-                  },
-                }}
-                className="outline-none"
-              >
-                <Select
-                  value={numWeeks}
-                  onChange={(e) => {
-                    setNumWeeks(e.target.value);
-                    setShowFetchNames(false);
-                  }}
-                >
-                  {[1, 2, 3, 4, 5, 6].map((week) => (
-                    <MenuItem key={week} value={week}>{`${week} week${
-                      week > 1 ? "s" : ""
-                    }`}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl
-                fullWidth
-                variant="outlined"
-                sx={{
-                  marginBottom: 2,
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": {
-                      borderColor: "#828282",
-                      borderWidth: "1px",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "#828282",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#828282",
-                      borderWidth: "1px",
-                    },
-                  },
-                  "& .MuiOutlinedInput-input": {
-                    outline: "none",
-                  },
-                }}
-                className="outline-none"
-              >
-                <Select
-                  value={numRows}
-                  onChange={(e) => {
-                    setNumRows(e.target.value);
-                    setShowFetchNames(false);
-                  }}
-                >
-                  {[1, 2, 3].map((menusperweek) => (
-                    <MenuItem key={menusperweek} value={menusperweek}>
-                      {`${menusperweek} menu option${
-                        menusperweek > 1 ? "s" : ""
-                      } per day`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <Button
-                variant="contained"
-                sx={{
-                  bgcolor: "#155C2C",
-                  "&:hover": { bgcolor: "#1C1C1C", color: "white" },
-                }}
-                size="large"
-                onClick={handleClick}
-              >
-                Recommend weekly menu
-              </Button>
-            </div>
-          </div>
-          <div className="bg-[#C8E6C9] shadow-lg rounded-lg px-2 md:w-[75%] min-h-[500px]">
-            {showFetchNames &&
-              (isLoading ? (
-                <CircularProgress
-                  sx={{
-                    color: "#155C2C",
-                    marginLeft: "30px",
-                    marginTop: "30px",
-                  }}
-                />
-              ) : (
-                <FetchNames
-                  mealDetails={mealDetails}
-                  labels={labels}
-                  restaurant={restaurant}
-                  numRows={numRows}
-                  numWeeks={numWeeks}
-                  selectedDate={selectedDate}
-                />
+          <FormControl
+            variant="outlined"
+            fullWidth
+            sx={{
+              flexBasis: "22%",
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": {
+                  borderColor: "#828282",
+                  borderWidth: "1px",
+                },
+                "&:hover fieldset": {
+                  borderColor: "#828282",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#000",
+                  borderWidth: "1px",
+                },
+              },
+            }}
+          >
+            <InputLabel
+              sx={{
+                backgroundColor: "#fff",
+                paddingLeft: "4px",
+                paddingRight: "4px",
+              }}
+            >
+              Number of weeks
+            </InputLabel>
+            <Select
+              value={numWeeks}
+              onChange={(e) => {
+                setNumWeeks(e.target.value);
+                setShowFetchNames(false);
+              }}
+            >
+              {[1, 2, 3, 4, 5, 6].map((week) => (
+                <MenuItem key={week} value={week}>
+                  {`${week} week${week > 1 ? "s" : ""}`}
+                </MenuItem>
               ))}
-          </div>
+            </Select>
+          </FormControl>
+
+          <FormControl
+            variant="outlined"
+            fullWidth
+            sx={{
+              flexBasis: "22%",
+              "& .MuiOutlinedInput-root": {
+                "& fieldset": {
+                  borderColor: "#828282",
+                  borderWidth: "1px",
+                },
+                "&:hover fieldset": {
+                  borderColor: "#828282",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#000",
+                  borderWidth: "1px",
+                },
+              },
+            }}
+          >
+            <InputLabel
+              sx={{
+                backgroundColor: "#fff",
+                paddingLeft: "4px",
+                paddingRight: "4px",
+              }}
+            >
+              Number of options
+            </InputLabel>
+            <Select
+              value={numRows}
+              onChange={(e) => {
+                setNumRows(e.target.value);
+                setShowFetchNames(false);
+              }}
+            >
+              {[1, 2, 3].map((menusperweek) => (
+                <MenuItem key={menusperweek} value={menusperweek}>
+                  {`${menusperweek} menu option${
+                    menusperweek > 1 ? "s" : ""
+                  } per week`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Button
+            variant="contained"
+            sx={{
+              bgcolor: "#155C2C",
+              "&:hover": { bgcolor: "#1C1C1C", color: "white" },
+              maxWidth: "250px",
+              width: "100%",
+              whiteSpace: "nowrap",
+              fontSize: { xs: "14px", sm: "16px", md: "18px" },
+            }}
+            size="medium"
+            onClick={handleClick}
+          >
+            Recommend menu
+          </Button>
+        </div>
+
+        <div className="bg-[#C8E6C9] shadow-lg rounded-lg px-2 w-full mt-4">
+          {showFetchNames &&
+            (isLoading ? (
+              <CircularProgress
+                sx={{
+                  color: "#155C2C",
+                  marginLeft: "30px",
+                  marginTop: "30px",
+                }}
+              />
+            ) : (
+              <FetchNames
+                mealDetails={mealDetails}
+                labels={labels}
+                restaurant={restaurant}
+                numRows={numRows}
+                numWeeks={numWeeks}
+                selectedDate={selectedDate}
+              />
+            ))}
         </div>
       </div>
     </>

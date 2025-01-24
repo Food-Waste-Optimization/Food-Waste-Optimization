@@ -1,48 +1,75 @@
 import React, { useState, useEffect } from "react";
-import { Box, Tabs, Tab, Pagination, Button } from "@mui/material";
+import {
+  Box,
+  Tabs,
+  Tab,
+  Pagination,
+  Button,
+  Menu,
+  MenuItem,
+} from "@mui/material";
 import { styled } from "@mui/material/styles";
 import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
+import { darken } from "@mui/system";
+import GraphsStats from "./GraphsStats.jsx";
+import GraphSales from "./GraphSales.jsx";
 
-const CustomPagination = styled(Pagination)(({ theme }) => ({
-  display: "flex",
-  flexWrap: "nowrap",
+const CustomPagination = styled(Pagination)(({ theme, page }) => ({
+  "& .MuiPaginationItem-root.Mui-selected": {
+    backgroundColor:
+      page === 1
+        ? "#3C7A5A"
+        : page === 2
+        ? "#FF6347"
+        : page === 3
+        ? "#FFEB3B"
+        : "#3C7A5A",
+    color: "#fff",
+    "&:hover": {
+      backgroundColor:
+        page === 1
+          ? "#3C7A5A"
+          : page === 2
+          ? "#FF6347"
+          : page === 3
+          ? "#FFEB3B"
+          : "#3C7A5A",
+    },
+  },
   "& .MuiPaginationItem-root": {
-    minWidth: "26px",
-    height: "26px",
-    margin: "0 2px",
-    fontSize: "0.8rem",
-    padding: "2px",
     color: "#555",
     "&:hover": {
       backgroundColor: "rgba(0, 0, 0, 0.1)",
     },
   },
-  "& .MuiPaginationItem-root.Mui-selected": {
-    backgroundColor: "#3C7A5A",
-    color: "#fff",
-    "&:hover": {
-      backgroundColor: "#3C7A5A",
-    },
-  },
-  "& .MuiPaginationItem-icon": {
-    fontSize: "0.9rem",
-    color: "#555",
-    "&:hover": {
-      color: "#3C7A5A",
-    },
-  },
-  "& .MuiPaginationItem-ellipsis": {
-    padding: "0 2px",
-    color: "#555",
-  },
 }));
 
-export default function RecGrid({ mealDetails, mealNames, restaurant }) {
+const CustomTabs = styled(Tabs)({
+  "& .MuiTabs-indicator": {
+    backgroundColor: "#155C2C",
+  },
+});
+
+const CustomTab = styled(Tab)({
+  "&.Mui-selected": {
+    color: "#155C2C",
+  },
+});
+
+export default function RecGrid({
+  mealDetails,
+  mealNames,
+  restaurant,
+  numRows,
+}) {
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [paginationState, setPaginationState] = useState({});
   const [mealsData, setMealsData] = useState([]);
+  const [anchorEl, setAnchorEl] = useState(null);
 
   const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const weekColors = ["#A4D9B2", "#C8BCE8", "#FFB870"];
 
   useEffect(() => {
     const fetchMealData = async () => {
@@ -62,30 +89,16 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
     }
   }, [restaurant]);
 
-  // Flatten the meal details (this is done on mealDetails prop)
-  const flattenedMealIds = mealDetails.reduce((acc, mealForDay) => {
-    mealForDay.meal_ids.forEach((mealArray) => acc.push(...mealArray));
-    return acc;
-  }, []);
-
-  // Create a map to associate mealId to mealName
   const mealIdToNameMap = new Map();
+  const mealKelaMap = new Map();
+  const mealTypeMap = new Map();
+
   mealsData.forEach((meal) => {
     mealIdToNameMap.set(meal.meal_id, meal.name);
-  });
-
-  // Create maps for Kela and mealType information
-  const mealKelaMap = new Map();
-  mealsData.forEach((meal) => {
     mealKelaMap.set(meal.meal_id, meal.is_kela);
-  });
-
-  const mealTypeMap = new Map();
-  mealsData.forEach((meal) => {
     mealTypeMap.set(meal.meal_id, meal.meal_type);
   });
 
-  // Group the meals into weeks for tab display
   const weeks = [];
   for (let i = 0; i < mealDetails.length; i += 5) {
     weeks.push(mealDetails.slice(i, i + 5));
@@ -97,103 +110,124 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
     setSelectedWeek(newValue);
   };
 
-  const handlePaginationChange = (dayIndex, value) => {
-    const updatedPaginationState = { ...paginationState };
-    if (!updatedPaginationState[selectedWeek]) {
-      updatedPaginationState[selectedWeek] = Array(5).fill(1);
-    }
-    updatedPaginationState[selectedWeek][dayIndex] = value;
-    setPaginationState(updatedPaginationState);
+  const handlePaginationChange = (value) => {
+    setPaginationState((prev) => ({
+      ...prev,
+      [selectedWeek]: value,
+    }));
   };
 
-  const resetPagination = () => {
-    const resetState = {};
-    weeks.forEach((week, weekIndex) => {
-      resetState[weekIndex] = Array(5).fill(1);
+  const getSelectedPageForWeek = () => {
+    return paginationState[selectedWeek] || 1;
+  };
+
+  const resetOptions = () => {
+    setPaginationState((prev) => {
+      const resetState = { ...prev };
+      Object.keys(resetState).forEach((weekIndex) => {
+        resetState[weekIndex] = 1; // Reset each week to page 1
+      });
+      return resetState;
     });
-    setPaginationState(resetState);
   };
-
-  const CustomTabs = styled(Tabs)({
-    "& .MuiTabs-indicator": {
-      backgroundColor: "#155C2C",
-    },
-  });
-
-  const CustomTab = styled(Tab)({
-    "&.Mui-selected": {
-      color: "#155C2C",
-    },
-  });
-
-  const mealsPerPage = mealDetails
-    .flatMap((day) => day.meal_ids)
-    .reduce((max, mealArray) => Math.max(max, mealArray.length), 0);
 
   const generatePDF = () => {
     const doc = new jsPDF();
-    let currentY = 20;
+    const margin = 10;
     const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    let currentY = 20;
+    const mealsPerPage = 10;
 
-    const location = restaurant;
-    const selectedWeeksCount = weeks.length;
-
-    const fileName = `MenuPlan_${location}_${selectedWeeksCount}weeks.pdf`;
-
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text(restaurant, 105, 15, { align: "center" });
+    doc.setFontSize(16);
+    doc.text(`Meal Plan for ${restaurant}`, margin, currentY);
     currentY += 10;
 
     weeks.forEach((week, weekIndex) => {
-      doc.setFontSize(18);
-      doc.text(`Week ${weekIndex + 1}`, 10, currentY);
+      doc.setFontSize(14);
+      doc.text(`Week ${weekIndex + 1}`, margin, currentY);
       currentY += 10;
 
-      week.forEach((mealForDay, dayIndex) => {
-        const { date, meal_ids } = mealForDay;
+      const selectedOption = paginationState[weekIndex] || 1; // Get selected option for this week
 
-        const currentPage = paginationState[weekIndex]?.[dayIndex] || 1;
+      week.forEach((day, dayIndex) => {
+        const yPos = currentY;
 
-        const flattenedMealIdsForDay = meal_ids.flat();
-        const startIndex = (currentPage - 1) * mealsPerPage;
-        const paginatedMeals = flattenedMealIdsForDay.slice(
-          startIndex,
-          startIndex + mealsPerPage
+        const mealNamesList = (day.meal_ids[selectedOption - 1] || []).map(
+          (mealId) => mealIdToNameMap.get(mealId) || "Unknown"
         );
 
-        const dayName = daysOfWeek[dayIndex];
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text(`${dayName} (${date})`, 10, currentY);
-        currentY += 10;
+        doc.setFontSize(12);
+        doc.text(`${daysOfWeek[dayIndex]} (${day.date}):`, margin, currentY);
+        currentY += 6;
 
-        doc.setFont("helvetica", "normal");
-
-        paginatedMeals.forEach((id) => {
-          const mealName = mealIdToNameMap.get(id) || `loading...`;
-
-          doc.text(mealName, 10, currentY);
-          currentY += 10;
-
-          if (currentY + 10 > pageHeight) {
+        // Render meals for the day
+        mealNamesList.forEach((mealName) => {
+          if (currentY + 10 > pageHeight - margin) {
             doc.addPage();
             currentY = 20;
           }
+          doc.text(mealName, margin, currentY);
+          currentY += 6; // Space between meals
         });
 
-        currentY += 5;
-
-        if (currentY + 20 > pageHeight) {
-          doc.addPage();
-          currentY = 20;
-        }
+        currentY += 10; // Space between days
       });
 
-      currentY += 10;
+      currentY += 10; // Space between weeks
     });
 
-    doc.save(fileName);
+    doc.save(`MealPlan_${restaurant}.pdf`);
+  };
+
+  const generateExcel = () => {
+    const workbook = XLSX.utils.book_new();
+    const sheetData = [];
+
+    weeks.forEach((week, weekIndex) => {
+      sheetData.push([`Week ${weekIndex + 1}`]);
+
+      week.forEach((mealForDay, dayIndex) => {
+        const { date, meal_ids } = mealForDay;
+        const dayName = daysOfWeek[dayIndex];
+
+        // Flatten the meal ids and map them to meal names
+        const mealNames = meal_ids
+          .flat()
+          .map((id) => mealIdToNameMap.get(id) || "");
+
+        // Add day data to the sheet
+        sheetData.push([`${dayName} (${date})`, ...mealNames]);
+      });
+
+      sheetData.push([]); // Add an empty row after each week
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Meal Plan");
+
+    XLSX.writeFile(workbook, `MealPlan_${restaurant}.xlsx`);
+  };
+
+  // Open menu to select file type
+  const handleClickSave = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  // Close menu
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  // PDF or Excel selection
+  const handleMenuItemClick = (type) => {
+    if (type === "pdf") {
+      generatePDF();
+    } else if (type === "excel") {
+      generateExcel();
+    }
+    handleClose();
   };
 
   return (
@@ -202,175 +236,282 @@ export default function RecGrid({ mealDetails, mealNames, restaurant }) {
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "5px",
-          padding: "20px 30px",
+          alignItems: "flex-start",
+          padding: "20px 0px",
         }}
       >
-        <CustomTabs value={selectedWeek} onChange={handleTabChange}>
-          {weeks.map((_, index) => (
-            <CustomTab key={index} label={`Week ${index + 1}`} />
-          ))}
-        </CustomTabs>
         <Box
           sx={{
+            flex: 1,
             display: "flex",
-            gap: "10px",
+            flexDirection: "column",
+            gap: "15px",
+            maxWidth: "65%",
+            padding: "0px",
+            borderRadius: "8px",
           }}
         >
-          <Button
-            variant="outlined"
-            sx={{
-              color: "#155C2C",
-              borderColor: "#155C2C",
-              "&:hover": { bgcolor: "#f0f0f0", borderColor: "#1C1C1C" },
-            }}
-            onClick={resetPagination}
-          >
-            Reset Options
-          </Button>
-          <Button
-            variant="contained"
-            sx={{
-              bgcolor: "#155C2C",
-              "&:hover": { bgcolor: "#1C1C1C", color: "white" },
-            }}
-            onClick={generatePDF}
-          >
-            Save PDF
-          </Button>
-        </Box>
-      </Box>
-
-      {mealDetails.length === 0 ? (
-        <p>No meal details available</p>
-      ) : (
-        <>
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)", // 5 cards next to each other
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
               gap: "10px",
-              marginLeft: "20px",
-              marginRight: "20px",
-              marginBottom: "30px",
               maxWidth: "100%",
+              padding: "10px",
+              backgroundColor: "#f7f7f7",
+              borderRadius: "8px",
             }}
           >
-            {weekData.map((mealForDay, dayIndex) => {
-              const { date, meal_ids } = mealForDay;
-              const currentPage =
-                paginationState[selectedWeek]?.[dayIndex] || 1;
+            {/* Week tabs, options, reset, save */}
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap", // Items wrap to next line if not enough space
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "10px",
+                "@media (max-width: 900px)": {
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                },
+              }}
+            >
+              <CustomTabs value={selectedWeek} onChange={handleTabChange}>
+                {weeks.map((_, index) => (
+                  <CustomTab key={index} label={`Week ${index + 1}`} />
+                ))}
+              </CustomTabs>
 
-              const flattenedMealIdsForDay = meal_ids.flat();
-              const startIndex = (currentPage - 1) * mealsPerPage;
-              const paginatedMeals = flattenedMealIdsForDay.slice(
-                startIndex,
-                startIndex + mealsPerPage
-              );
-
-              const totalPages = Math.ceil(
-                flattenedMealIdsForDay.length / mealsPerPage
-              );
-
-              return (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
                 <Box
-                  key={dayIndex}
                   sx={{
                     display: "flex",
-                    flexDirection: "column",
+                    gap: 2,
                     justifyContent: "flex-start",
-                    backgroundColor: "#f7f7f7",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                    height: "auto",
-                    maxWidth: "100%",
-                    boxSizing: "border-box",
-                    overflow: "hidden",
-                    wordWrap: "break-word",
-                    overflowWrap: "break-word",
+                    paddingTop: 0,
                   }}
                 >
-                  <strong>{daysOfWeek[dayIndex]}</strong>
-                  <p>{date}</p>
+                  {Array.from({ length: numRows }, (_, index) => (
+                    <Button
+                      key={index}
+                      onClick={() => handlePaginationChange(index + 1)}
+                      variant=""
+                      sx={{
+                        padding: "6px 12px",
+                        backgroundColor:
+                          getSelectedPageForWeek() === index + 1
+                            ? darken(weekColors[index % weekColors.length], 0.4)
+                            : `${weekColors[index % weekColors.length]}80`,
+                        color:
+                          getSelectedPageForWeek() === index + 1
+                            ? "#fff"
+                            : "#000",
+                        boxShadow:
+                          getSelectedPageForWeek() === index + 1
+                            ? "0 4px 8px rgba(0, 0, 0, 0.6)"
+                            : "none",
+                        "&:hover": {
+                          backgroundColor:
+                            getSelectedPageForWeek() === index + 1
+                              ? darken(
+                                  weekColors[index % weekColors.length],
+                                  0.4
+                                )
+                              : `${weekColors[index % weekColors.length]}99`,
 
-                  <Box sx={{ marginBottom: "10px" }}>
-                    {totalPages > 1 && (
-                      <CustomPagination
-                        count={totalPages}
-                        page={currentPage}
-                        onChange={(e, value) =>
-                          handlePaginationChange(dayIndex, value)
-                        }
-                      />
+                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                        },
+                        borderRadius: "16px",
+                      }}
+                    >
+                      Option {index + 1}
+                    </Button>
+                  ))}
+                </Box>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={resetOptions}
+                  sx={{
+                    borderColor: "#3C7A5A",
+                    color: "#3C7A5A",
+                    "&:hover": {
+                      backgroundColor: "#D3D3D3",
+                      color: "#000",
+                    },
+                  }}
+                >
+                  Reset Options
+                </Button>
+
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleClickSave}
+                  sx={{
+                    backgroundColor: "#333333",
+                    "&:hover": {
+                      backgroundColor: "#000",
+                    },
+                  }}
+                >
+                  Save
+                </Button>
+
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleClose}
+                >
+                  <MenuItem onClick={() => handleMenuItemClick("pdf")}>
+                    Save as PDF
+                  </MenuItem>
+                  <MenuItem onClick={() => handleMenuItemClick("excel")}>
+                    Save as Excel
+                  </MenuItem>
+                </Menu>
+              </Box>
+            </Box>
+
+            {/* Meals grid */}
+            <Box
+              sx={{
+                display: "flex",
+                gap: "10px",
+                width: "100%",
+                maxWidth: "100%",
+                overflowX: "hidden",
+                flexWrap: "nowrap",
+                justifyContent: "space-between",
+              }}
+            >
+              {weekData.map((mealForDay, dayIndex) => {
+                return (
+                  <Box
+                    key={dayIndex}
+                    sx={{
+                      flex: "1 1 auto",
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "20%",
+                      gap: "10px",
+                      padding: "10px",
+                      backgroundColor: "#f7f7f7",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+
+                      textAlign: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <h3 style={{ fontWeight: "bold" }}>
+                      {daysOfWeek[dayIndex]} ({mealForDay.date})
+                    </h3>
+
+                    {mealForDay.meal_ids[getSelectedPageForWeek() - 1]?.map(
+                      (mealId) => {
+                        const mealName = mealIdToNameMap.get(mealId) || "";
+                        const isKela = mealKelaMap.get(mealId);
+                        const mealType = mealTypeMap.get(mealId) || "";
+                        const backgroundColor =
+                          weekColors[getSelectedPageForWeek() - 1] || "#66BB6A";
+
+                        return (
+                          <Box
+                            key={mealId}
+                            sx={{
+                              backgroundColor: backgroundColor,
+                              padding: "10px",
+                              borderRadius: "8px",
+                              color: "black",
+                            }}
+                          >
+                            <p
+                              style={{
+                                margin: 0,
+                                textAlign: "left",
+                                wordBreak: "break-word",
+                                overflowWrap: "break-word",
+                                hyphens: "auto",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  hyphens: "auto",
+                                  wordBreak: "break-word",
+                                  overflowWrap: "break-word",
+                                }}
+                              >
+                                {mealName}
+                              </span>{" "}
+                              {isKela && (
+                                <span
+                                  style={{
+                                    backgroundColor: "#FFD580",
+                                    padding: "3px 5px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  Kela
+                                </span>
+                              )}{" "}
+                              {mealType && (
+                                <span
+                                  style={{
+                                    backgroundColor: "#fff",
+                                    padding: "3px 5px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {mealType}
+                                </span>
+                              )}
+                            </p>
+                          </Box>
+                        );
+                      }
                     )}
                   </Box>
-
-                  <div>
-                    {paginatedMeals.map((mealId) => {
-                      const mealName =
-                        mealIdToNameMap.get(mealId) || `loading...`;
-
-                      const isKela = mealKelaMap.get(mealId) ? " (Kela)" : "";
-                      const mealType = mealTypeMap.get(mealId);
-
-                      return (
-                        <Box
-                          key={mealId}
-                          sx={{
-                            backgroundColor: "#d1e7dd",
-                            padding: "5px",
-                            borderRadius: "4px",
-                            marginTop: "5px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            wordWrap: "break-word",
-                            overflowWrap: "break-word",
-                          }}
-                        >
-                          <span>
-                            {mealName}
-                            <br />
-                            {isKela && (
-                              <span
-                                style={{
-                                  marginRight: "10px",
-                                  backgroundColor: "#FFD580",
-                                  padding: "3px 5px",
-                                  borderRadius: "4px",
-                                  fontSize: "0.9rem",
-                                  color: "black",
-                                }}
-                              >
-                                Kela
-                              </span>
-                            )}
-                            {mealType && (
-                              <span
-                                style={{
-                                  backgroundColor: "#FFB3A7",
-                                  padding: "3px 5px",
-                                  borderRadius: "4px",
-                                  fontSize: "0.9rem",
-                                }}
-                              >
-                                {mealType}
-                              </span>
-                            )}
-                          </span>
-                        </Box>
-                      );
-                    })}
-                  </div>
-                </Box>
-              );
-            })}
+                );
+              })}
+            </Box>
           </Box>
-        </>
-      )}
+
+          {/* Graphs */}
+          <Box
+            sx={{
+              backgroundColor: "#f7f7f7",
+              padding: "20px",
+              borderRadius: "8px",
+            }}
+          >
+            <GraphSales
+              mealDetails={weeks[selectedWeek]}
+              restaurant={restaurant}
+            />
+          </Box>
+        </Box>
+
+        <Box sx={{ flex: 1, maxWidth: "35%" }}>
+          <GraphsStats
+            mealDetails={weeks[selectedWeek]}
+            restaurant={restaurant}
+          />
+        </Box>
+      </Box>
     </div>
   );
 }

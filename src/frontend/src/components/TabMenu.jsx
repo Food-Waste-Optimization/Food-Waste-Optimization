@@ -48,29 +48,25 @@ export default function TabMenu() {
 
   return (
     <div className="min-h-screen bg-emerald-50 p-4">
-      <div className="flex flex-col md:flex-row items-center justify-between px-4 pt-4 w-full">
-        <div className="flex-grow mb-0 md:mb-0 pb-4">
-          <CustomTabs
-            value={value}
-            onChange={handleChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-          >
-            <CustomTab label="About" />
-            <CustomTab label="Recommendation System" />
-          </CustomTabs>
-        </div>
-
-        <div className="text-center md:text-right mb-4 md:mb-0">
-          <h1 className="text-2xl font-bold text-[#155C2C] px-2 pt-2">
-            Unicafe Meal Planner
-          </h1>
-          <div className="flex items-end space-x-2 pt-2 justify-start">
+      <div className="flex items-center justify-start px-4 pt-1 w-full">
+        {" "}
+        <div className="flex items-center space-x-4 mb-4 md:mb-0">
+          {" "}
+          <div className="flex items-center">
+            <img src={logofood} width={40} alt="Food Logo" />{" "}
+          </div>
+          <div className="text-left">
+            <h1 className="text-lg font-bold text-[#155C2C] px-2 pt-2">
+              {" "}
+              YLVA AI Menu Planner
+            </h1>
+          </div>
+          <div className="flex items-center space-x-2 pt-2">
+            {" "}
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="75"
-              height="50"
+              width="60"
+              height="40"
               viewBox="-30 0 100 100"
               className="m-0"
             >
@@ -81,8 +77,8 @@ export default function TabMenu() {
             </svg>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="60"
-              height="50"
+              width="50"
+              height="40"
               viewBox="-30 0 100 100"
               className="m-0"
             >
@@ -93,8 +89,8 @@ export default function TabMenu() {
             </svg>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="80"
-              height="50"
+              width="65"
+              height="40"
               viewBox="-30 0 140 100"
               className="m-0"
             >
@@ -105,8 +101,8 @@ export default function TabMenu() {
             </svg>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="60"
-              height="50"
+              width="50"
+              height="40"
               viewBox="-30 0 100 100"
               className="m-0"
             >
@@ -117,19 +113,9 @@ export default function TabMenu() {
             </svg>
           </div>
         </div>
-
-        <div className="flex items-center ml-4">
-          <img src={logofood} width={68} alt="Food Logo" />
-        </div>
       </div>
 
-      <CustomTabPanel value={value} index={0}>
-        <LandingPage onSwitchTab={handleSwitchTab} />
-      </CustomTabPanel>
-
-      <CustomTabPanel value={value} index={1}>
-        <Dashboard />
-      </CustomTabPanel>
+      <Dashboard />
     </div>
   );
 }
