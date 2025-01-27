@@ -140,7 +140,7 @@ export default function GraphSales({ mealDetails, restaurant }) {
               textAlign: "center",
             }}
           >
-            Weekly sales forecast per day
+            Weekly customer forecast per day
           </Typography>
 
           {/* Sales Bar Chart */}
@@ -176,7 +176,7 @@ export default function GraphSales({ mealDetails, restaurant }) {
                   tooltip: { enabled: true },
                   datalabels: {
                     color: "#5a6268",
-                    font: { size: 16, weight: "bold" },
+                    font: { size: 12, weight: "bold" },
                     rotation: -90,
                     align: "center",
                     anchor: "center",

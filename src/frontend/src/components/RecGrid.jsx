@@ -489,7 +489,6 @@ export default function RecGrid({
               })}
             </Box>
           </Box>
-
           {/* Graphs */}
           <Box
             sx={{
@@ -502,6 +501,18 @@ export default function RecGrid({
               mealDetails={weeks[selectedWeek]}
               restaurant={restaurant}
             />
+          </Box>
+          <Box
+            sx={{
+              flex: 1,
+              maxWidth: "70%",
+              paddingTop: "20px",
+              paddingLeft: "10px",
+            }}
+          >
+            This recommendation system considers multiple factors, including
+            popular meal choices, Kela requirements, a minimum number of vegan
+            and fish meals per week, and biowaste and emissions targets.
           </Box>
         </Box>
 

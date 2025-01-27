@@ -278,7 +278,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
                     tooltip: { enabled: true },
                     datalabels: {
                       color: "#5a6268",
-                      font: { size: 16, weight: "bold" },
+                      font: { size: 12, weight: "bold" },
                       rotation: -90,
                       align: "center",
                       anchor: "center",
@@ -353,7 +353,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
                     tooltip: { enabled: true },
                     datalabels: {
                       color: "#5a6268",
-                      font: { size: 16, weight: "bold" },
+                      font: { size: 12, weight: "bold" },
                       rotation: -90,
                       align: "center",
                       anchor: "center",
