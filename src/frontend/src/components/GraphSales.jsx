@@ -31,23 +31,29 @@ export default function GraphSales({ mealDetails, restaurant }) {
     )}`;
   };
 
-  const fetchMealData = async (url) => {
+  const fetchMealData = async (url, signal) => {
     if (cache[url]) {
       return cache[url];
     }
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       const data = await response.json();
       setCache((prevCache) => ({ ...prevCache, [url]: data.meals || [] }));
       return data.meals || [];
     } catch (error) {
-      console.error("Error fetching meal data:", error);
+      if (error.name !== "AbortError") {
+        console.error("Error fetching meal data:", error);
+      }
       return [];
     }
   };
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+    const signal = controller.signal;
+
     const loadMealData = async () => {
       if (!mealDetails || mealDetails.length === 0) return;
       setLoading(true);
@@ -60,7 +66,9 @@ export default function GraphSales({ mealDetails, restaurant }) {
         for (const [index, mealSet] of meal_ids.entries()) {
           const url = generateMealUrl(date, mealSet);
           fetchPromises.push(
-            fetchMealData(url).then((fetchedMeals) => {
+            fetchMealData(url, signal).then((fetchedMeals) => {
+              if (!isMounted) return;
+
               const totalSales = fetchedMeals.reduce(
                 (acc, meal) => acc + meal.pcs_pred,
                 0
@@ -71,7 +79,7 @@ export default function GraphSales({ mealDetails, restaurant }) {
               }
               dateWiseMeals[date].push({
                 mealSetIndex: index,
-                totalSales: Math.round(totalSales), // Round the totalSales here
+                totalSales: Math.round(totalSales),
               });
             })
           );
@@ -79,44 +87,38 @@ export default function GraphSales({ mealDetails, restaurant }) {
       }
 
       await Promise.all(fetchPromises);
+      if (!isMounted) return;
 
-      // Sort the dates in ascending order (this is the key change)
-      const sortedDates = Object.keys(dateWiseMeals).sort((a, b) => {
-        return new Date(a) - new Date(b); // Sort by date
-      });
+      const sortedDates = Object.keys(dateWiseMeals).sort(
+        (a, b) => new Date(a) - new Date(b)
+      );
 
-      // Set the sorted chart data
       setChartData(
         sortedDates.map((date) => ({
           date,
-          mealSets: dateWiseMeals[date],
+          mealSets: dateWiseMeals[date].sort(
+            (a, b) => a.mealSetIndex - b.mealSetIndex
+          ),
         }))
       );
       setLoading(false);
     };
+
     loadMealData();
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [mealDetails, restaurant]);
 
   const getColorForSet = (index, numSets) => {
-    const colorPalette = [
-      "#A4D9B2", // Blue
-      "#B3A6D3", // Red
-      "#FFB870", // Yellow
-    ];
-
-    if (numSets === 3) {
-      return colorPalette[index % 3]; // Always return one of the first 3 colors
-    }
-
-    if (numSets === 1) {
-      return colorPalette[0]; // Use the first color for all
-    }
-
-    return colorPalette[index % colorPalette.length]; // Cycle through colors
+    const colorPalette = ["#A4D9B2", "#B3A6D3", "#FFB870"];
+    return numSets === 3
+      ? colorPalette[index % 3]
+      : colorPalette[index % colorPalette.length];
   };
 
   const formatDate = (date) => {
-    // Format the date as MM/DD
     const [year, month, day] = date.split("-");
     return `${month}/${day}`;
   };
@@ -125,25 +127,16 @@ export default function GraphSales({ mealDetails, restaurant }) {
     <Box sx={{ padding: "20px" }}>
       {loading ? (
         <CircularProgress
-          sx={{
-            color: "#155C2C",
-            marginLeft: "30px",
-            marginTop: "30px",
-          }}
+          sx={{ color: "#155C2C", marginLeft: "30px", marginTop: "30px" }}
         />
       ) : (
         <>
           <Typography
             variant="h6"
-            sx={{
-              marginBottom: "-50px", // Reduced margin to bring the title closer to the graph
-              textAlign: "center",
-            }}
+            sx={{ marginBottom: "-50px", textAlign: "center" }}
           >
             Weekly customer forecast per day
           </Typography>
-
-          {/* Sales Bar Chart */}
           <Box sx={{ height: "340px", width: "100%" }}>
             <Bar
               data={{
@@ -155,14 +148,13 @@ export default function GraphSales({ mealDetails, restaurant }) {
                 ),
                 datasets: [
                   {
-                    label: "Forecasted Sales",
+                    label: "Customers",
                     data: chartData.flatMap((data) =>
                       data.mealSets.map((set) => set.totalSales)
                     ),
                     backgroundColor: chartData.flatMap((data) =>
-                      data.mealSets.map(
-                        (set, setIndex) =>
-                          getColorForSet(setIndex, data.mealSets.length) // Pass mealSets length
+                      data.mealSets.map((set, setIndex) =>
+                        getColorForSet(setIndex, data.mealSets.length)
                       )
                     ),
                   },
@@ -181,16 +173,13 @@ export default function GraphSales({ mealDetails, restaurant }) {
                     align: "center",
                     anchor: "center",
                     padding: 5,
-                    formatter: (value) => Math.round(value), // Round the value to the nearest whole number
+                    formatter: (value) => Math.round(value),
                   },
                 },
                 scales: {
                   x: {
                     title: { display: true, text: "Date (Menu Option)" },
-                    ticks: {
-                      autoSkip: false,
-                      // Removed rotation of x-axis labels
-                    },
+                    ticks: { autoSkip: false },
                   },
                   y: {
                     title: { display: true, text: "Total Sales" },

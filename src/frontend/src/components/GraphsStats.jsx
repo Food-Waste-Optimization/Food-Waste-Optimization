@@ -51,73 +51,93 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
   };
 
   useEffect(() => {
+    let isMounted = true; // Prevents setting state if component unmounts
+    const controller = new AbortController(); // Controls fetch cancellation
+    const signal = controller.signal;
+
     const loadMealData = async () => {
       if (!mealDetails || mealDetails.length === 0) return;
+
       setLoading(true);
       let dateWiseMeals = {};
       let optionWiseMeals = {};
-      const fetchPromises = [];
+      let allMealSets = [];
 
-      for (const mealForDay of mealDetails) {
-        const { date, meal_ids } = mealForDay;
-
-        for (const [index, mealSet] of meal_ids.entries()) {
+      const fetchPromises = mealDetails.flatMap(({ date, meal_ids }) =>
+        meal_ids.map(async (mealSet, index) => {
           const url = generateMealUrl(date, mealSet);
-          fetchPromises.push(
-            fetchMealData(url).then((fetchedMeals) => {
-              const totalSales = fetchedMeals.reduce(
-                (acc, meal) => acc + meal.pcs_pred,
-                0
-              );
-              const totalCO2 = fetchedMeals.reduce(
-                (acc, meal) => acc + meal.pcs_pred * meal.co2,
-                0
-              );
-              const totalWaste = fetchedMeals.reduce(
-                (acc, meal) => acc + meal.pcs_pred * meal.waste,
-                0
-              );
 
-              const totalWasteHectograms = totalWaste * 10; // Convert to hectograms
+          try {
+            const fetchedMeals = await fetchMealData(url, signal); // Pass the signal to cancel fetches
 
-              if (!dateWiseMeals[date]) {
-                dateWiseMeals[date] = [];
-              }
-              dateWiseMeals[date].push({
-                mealSetIndex: index,
-                totalSales,
-                totalCO2,
-                totalWasteHectograms,
-              });
+            if (!isMounted) return; // Prevents updating state if component unmounted
 
-              if (!optionWiseMeals[index]) {
-                optionWiseMeals[index] = {
-                  totalSales: 0,
-                  totalCO2: 0,
-                  totalWasteHectograms: 0,
-                };
-              }
-              optionWiseMeals[index].totalSales += totalSales;
-              optionWiseMeals[index].totalCO2 += totalCO2;
-              optionWiseMeals[index].totalWasteHectograms +=
-                totalWasteHectograms;
-            })
-          );
-        }
-      }
+            const totalSales = fetchedMeals.reduce(
+              (acc, meal) => acc + meal.pcs_pred,
+              0
+            );
+            const totalCO2 = fetchedMeals.reduce(
+              (acc, meal) => acc + meal.pcs_pred * meal.co2,
+              0
+            );
+            const totalWaste = fetchedMeals.reduce(
+              (acc, meal) => acc + meal.pcs_pred * meal.waste,
+              0
+            );
+            const totalWasteHectograms = totalWaste * 10;
+
+            if (!dateWiseMeals[date]) {
+              dateWiseMeals[date] = [];
+            }
+
+            dateWiseMeals[date].push({
+              mealSetIndex: index,
+              totalSales,
+              totalCO2,
+              totalWasteHectograms,
+            });
+
+            if (!optionWiseMeals[index]) {
+              optionWiseMeals[index] = {
+                totalSales: 0,
+                totalCO2: 0,
+                totalWasteHectograms: 0,
+              };
+            }
+
+            optionWiseMeals[index].totalSales += totalSales;
+            optionWiseMeals[index].totalCO2 += totalCO2;
+            optionWiseMeals[index].totalWasteHectograms += totalWasteHectograms;
+
+            allMealSets.push({
+              date,
+              index,
+              totalSales,
+              totalCO2,
+              totalWasteHectograms,
+            });
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              console.error("Fetch error:", error);
+            }
+          }
+        })
+      );
 
       await Promise.all(fetchPromises);
 
-      // Sort the dates in ascending order (this is the key change)
-      const sortedDates = Object.keys(dateWiseMeals).sort((a, b) => {
-        return new Date(a) - new Date(b); // Sort by date
-      });
+      if (!isMounted) return; // Prevents setting state if the effect has been cleaned up
 
-      // Set the sorted chart data
+      const sortedDates = Object.keys(dateWiseMeals).sort(
+        (a, b) => new Date(a) - new Date(b)
+      );
+
       setChartData(
         sortedDates.map((date) => ({
           date,
-          mealSets: dateWiseMeals[date],
+          mealSets: dateWiseMeals[date].sort(
+            (a, b) => a.mealSetIndex - b.mealSetIndex
+          ),
         }))
       );
 
@@ -129,7 +149,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
             data: [
               optionWiseMeals[optionIndex].totalWasteHectograms,
               optionWiseMeals[optionIndex].totalCO2,
-              Math.round(optionWiseMeals[optionIndex].totalSales), // Rounded sales value
+              Math.round(optionWiseMeals[optionIndex].totalSales),
             ],
             backgroundColor: getColorForSet(
               optionIndex,
@@ -140,17 +160,19 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
               Object.keys(optionWiseMeals).length
             ),
             borderWidth: 2,
-            totalSurfaceArea:
-              optionWiseMeals[optionIndex].totalWasteHectograms +
-              optionWiseMeals[optionIndex].totalCO2 +
-              optionWiseMeals[optionIndex].totalSales, // Calculate total surface area
           }))
-          .sort((a, b) => a.totalSurfaceArea - b.totalSurfaceArea), // Sort by smallest first
+          .sort((a, b) => a.totalSales - b.totalSales),
       });
 
       setLoading(false);
     };
+
     loadMealData();
+
+    return () => {
+      isMounted = false; // Prevents updates on unmounted component
+      controller.abort(); // Cancels any ongoing fetch requests
+    };
   }, [mealDetails, restaurant, selectedWeek]);
 
   const getColorForSet = (index, numSets) => {
