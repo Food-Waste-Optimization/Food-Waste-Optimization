@@ -1,19 +1,11 @@
 
 CREATE TABLE IF NOT EXISTS meals (
     meal_id         INT     PRIMARY KEY
-    ,meal_type_1    TEXT
-    ,meal_type_2    TEXT
+    ,aliases        TEXT[]
+    ,meal_type      TEXT
     ,restaurant     TEXT[]
     ,schoolyear     TEXT
-    ,is_kela        BOOLEAN
-    ,is_new         BOOLEAN
-    ,pcs_mean       float
-);
-
-CREATE TABLE IF NOT EXISTS meal_names (
-    meal_id         INT
-    ,meal           TEXT
-
+    ,attributes     TEXT[]
 );
 
 -- CREATE TABLE IF NOT EXISTS pieces_per_dish (
@@ -55,6 +47,7 @@ CREATE TABLE IF NOT EXISTS menu (
     -- ,co2_per_customer       float   not null
     -- ,waste_per_customer     float   not null
     ,fitness                float   not null
+    ,index                  BIGINT
 
     -- ,constraint pk_menu primary key (date, restaurant)
 );

@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:latest
     container_name: fw_ylva_db
     ports:
       - ${DB_PORT}:5432
