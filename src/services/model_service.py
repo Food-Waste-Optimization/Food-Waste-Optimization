@@ -89,19 +89,16 @@ class ModelService:
     def _load_model_phase4(self):
         logger.info("Load trained model for per-meal POS forecast and encoder")
 
-        path = ModelService.PATH_ROOT_TRAINED_MODEL / "pos/phase_4/lightbgm_Jan21.txt"
+        path = Path(os.getenv("MODEL_POS_FORECASTING", ""))
+        logger.debug(
+            f"path per-meal POS forecasting: {os.getenv('MODEL_POS_FORECASTING')}"
+        )
         self.models["per_day_POS"] = lightgbm.Booster(model_file=path)
 
-        path = (
-            ModelService.PATH_ROOT_TRAINED_MODEL
-            / "encoder/phase_4/dim_meal_embds_Jan21.parquet"
-        )
+        path = Path(os.getenv("DIM_MEAL_EMBDS", ""))
         self.meal_embds = pl.read_parquet(path)
 
-        path = (
-            ModelService.PATH_ROOT_TRAINED_MODEL
-            / "encoder/phase_4/dim_topK_Jan21.parquet"
-        )
+        path = Path(os.getenv("DIM_TOPK", ""))
         self.topK = pl.read_parquet(path)
 
     def _post_process(self, prediction):

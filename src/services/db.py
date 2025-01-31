@@ -97,30 +97,17 @@ def fetch_menu(table_name: str = "menu", **kwargs) -> pd.DataFrame:
 
 
 @db_connect
-def fetch_meal_info(
-    table1: str = "meal_names", table2: str = "meals", **kwargs
-) -> pd.DataFrame:
+def fetch_meal_info(table: str = "meals", **kwargs) -> pd.DataFrame:
     query = """
-        with tmp as (
-            SELECT
-                meal_id
-                , meal
-                , rank() over (PARTITION BY meal_id order by meal) as rank
-            from {table1}
-        ), tmp1 as (
-            SELECT meal_id, meal from tmp where rank = 1
-        )
         select
-            {table2}.meal_id
-            , {table2}.meal_type_1 as meal_type
-            , {table2}.is_kela as is_kela
-            , tmp1.meal as name
-        from {table2}
-        JOIN tmp1
-        ON  {table2}.meal_id = tmp1.meal_id
+            {table}.meal_id
+            , {table}.meal_type
+            , {table}.aliases[1] as name
+            , {table}.attributes
+        from {table}
         where 1=1
-            and {restaurant} = any({table2}.restaurant)
-            and {table2}.schoolyear = {schoolyear}
+            and {restaurant} = any({table}.restaurant)
+            and {table}.schoolyear = {schoolyear}
         ;
     """
 
@@ -128,8 +115,7 @@ def fetch_meal_info(
     cur = kwargs["cur"]
 
     stmt = sql.SQL(query).format(
-        table1=sql.Identifier(table1),
-        table2=sql.Identifier(table2),
+        table=sql.Identifier(table),
         restaurant=sql.Literal(kwargs["restaurant"]),
         schoolyear=sql.Literal(kwargs["schoolyear"]),
     )
@@ -148,9 +134,7 @@ def fetch_meal_info_with_ids(table: str = "meals", **kwargs) -> pd.DataFrame:
     query = """
         select
             meal_id as "id"
-            , meal_type_1 as type
-            , pcs_mean as "mean"
-            , is_kela
+            , meal_type as type
         from {table}
         where meal_id = ANY(%s)
         ;

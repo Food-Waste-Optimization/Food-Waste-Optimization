@@ -6,7 +6,9 @@ services:
     volumes:
       - ${TRAINED_MODELS}:/trained_models
     environment:
-      - TRAINED_MODELS=/trained_models
+      - MODEL_POS_FORECASTING=${MODEL_POS_FORECASTING}
+      - DIM_MEAL_EMBDS=${DIM_MEAL_EMBDS}
+      - DIM_TOPK=${DIM_TOPK}
       - DB_PORT=${DB_PORT}
       - DB_PWD=${DB_PWD}
       - DB_USER=${DB_USER}
