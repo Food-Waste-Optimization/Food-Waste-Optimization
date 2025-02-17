@@ -3,6 +3,7 @@ from flask import Blueprint, make_response, render_template, request
 from pandas._libs.tslibs.parsing import DateParseError
 
 from src.services import db, model_service
+from src.utils.meals import get_meal_data
 
 blueprint = Blueprint("fwo", __name__)
 model = model_service.ModelService()
@@ -93,6 +94,37 @@ def forecast_receipt():
 
             resp = make_response(out, 200)
             resp.headers.set("Content-Type", "application/json")
+
+    return resp
+
+
+@blueprint.route("/visualize")
+def visualize():
+    resp = None
+
+    restaurant = request.args.get('restaurant', None)
+    if (
+        restaurant is None
+        or not isinstance(restaurant, str)
+        or restaurant.lower() not in ["chemicum", "physicum", "exactum", "viikuna"]
+    ):
+        resp = make_response("Invalid query argument: 'restaurant'", 400)
+
+    if resp is None:
+        meal_data = get_meal_data(restaurant)
+
+        assert len(meal_data["meals"]) > 0
+
+        meal_names = meal_data["meals"]
+        restaurant = meal_data["restaurant"]
+        date = meal_data["date"]
+
+        ## TODO
+        meal_info = {meal_name: model.predict_with_name() for meal_name in meal_names}
+
+        out = {"meals": meal_info, "restaurant": restaurant, "date": date}
+        resp = make_response(out, 200)
+        resp.headers.set("Content-Type", "application/json")
 
     return resp
 
