@@ -206,7 +206,9 @@ def get_meal_info():
                 restaurant = "vik"
 
         # Fetch necessary data
-        meals = db.fetch_meal_info(restaurant=restaurant, schoolyear=schoolyear)
+        meals = db.fetch_meal_info_with_restaurant(
+            restaurant=restaurant, schoolyear=schoolyear
+        )
 
         # Make up output
         buff = meals.to_dict(orient="records")

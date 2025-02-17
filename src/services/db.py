@@ -102,6 +102,32 @@ def fetch_meal_info(table: str = "meals", **kwargs) -> pd.DataFrame:
         select
             {table}.meal_id
             , {table}.meal_type
+            , {table}.aliases as name
+            , {table}.attributes
+        from {table}
+        ;
+    """
+
+    # Trigger query
+    cur = kwargs["cur"]
+
+    stmt = sql.SQL(query).format(table=sql.Identifier(table))
+    # logger.debug(stmt.as_string())
+
+    cur.execute(stmt)
+
+    ret = cur.fetchall()
+    out = pd.DataFrame.from_records(ret)
+
+    return out
+
+
+@db_connect
+def fetch_meal_info_with_restaurant(table: str = "meals", **kwargs) -> pd.DataFrame:
+    query = """
+        select
+            {table}.meal_id
+            , {table}.meal_type
             , {table}.aliases[1] as name
             , {table}.attributes
         from {table}
