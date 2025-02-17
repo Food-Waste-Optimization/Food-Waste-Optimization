@@ -3,10 +3,12 @@ from flask import Blueprint, make_response, render_template, request
 from pandas._libs.tslibs.parsing import DateParseError
 
 from src.services import db, model_service
+from src.utils.meals import get_meal_data
 
 blueprint = Blueprint("fwo", __name__)
 model = model_service.ModelService()
 
+URL_YLVA_API = "https://unicafe.fi/wp-json/swiss/v1/restaurants?wpml_language=en"
 
 # == APIs for Others ===================================================================================================================
 
@@ -97,6 +99,36 @@ def forecast_receipt():
     return resp
 
 
+@blueprint.route("/visualize")
+def visualize():
+    resp = None
+
+    restaurant = request.args.get("restaurant", None)
+    if (
+        restaurant is None
+        or not isinstance(restaurant, str)
+        or restaurant.lower() not in ["chemicum", "physicum", "exactum", "viikuna"]
+    ):
+        resp = make_response("Invalid query argument: 'restaurant'", 400)
+
+    if resp is None:
+        assert isinstance(restaurant, str)
+        meal_data = get_meal_data(restaurant, URL_YLVA_API)
+
+        assert len(meal_data["meals"]) > 0
+
+        # Predict
+        meal_info = model.get_meals_prediction(meal_data)
+
+        restaurant = meal_data["restaurant"]
+        date = meal_data["date"]
+        out = {"meals": meal_info, "restaurant": restaurant, "date": date}
+        resp = make_response(out, 200)
+        resp.headers.set("Content-Type", "application/json")
+
+    return resp
+
+
 # == APIs for Recommendation ===================================================================================================================
 @blueprint.route("/recommendation")
 def recommend_menu():
@@ -169,7 +201,7 @@ def recommend_menu():
                     df = menus[menus["rank"] == rank]
                     buff.append(df[["date", "meal_ids"]].to_dict(orient="records"))
 
-            payload[f"week_{i+1}"] = buff
+            payload[f"week_{i + 1}"] = buff
 
         resp = make_response(payload, 200)
         resp.headers.set("Content-Type", "application/json")

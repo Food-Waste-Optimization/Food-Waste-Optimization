@@ -1,7 +1,6 @@
 """Creates ModelService class that allows requests to AI models."""
 
 import os
-from datetime import datetime
 from itertools import zip_longest
 from pathlib import Path
 
@@ -9,14 +8,12 @@ import lightgbm
 import numpy as np
 import pandas as pd
 import polars as pl
-import requests
 
 # from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
 
 from . import db
 
-URL_YLVA_API = "https://unicafe.fi/wp-json/swiss/v1/restaurants?wpml_language=en"
 RESTAURANTS = ["Viikuna", "Physicum", "Exactum", "Chemicum"]
 ENTRY_TYPES = {
     "Tiedoitus": "Notification",
@@ -63,19 +60,7 @@ cols_cat = [
     "restaurant_enc",
 ]
 
-map_weekday2abbr = {
-    0: "Ma",
-    1: "Ti",
-    2: "Ke",
-    3: "To",
-    4: "Pe",
-}
-map_restaurant = {
-    "Physicum": "phy",
-    "Chemicum": "che",
-    "Exactum": "exa",
-    "Viikuna": "vik",
-}
+
 indices = pl.from_records(
     [
         {"restaurant": "phy", "index": 1},
@@ -84,15 +69,6 @@ indices = pl.from_records(
         {"restaurant": "vik", "index": 4},
     ]
 )
-
-
-def _get_today() -> str:
-    today = datetime.now()
-
-    assert today.weekday() <= 4
-    weekday = map_weekday2abbr[datetime.now().weekday()]
-
-    return f"{weekday} {today.strftime('%d.%m.')}"
 
 
 def _hamming_distance(s1: str, s2: str) -> float:
@@ -237,41 +213,21 @@ class ModelService:
 
         return output
 
-    def get_today_meals_prediction(self) -> list[dict]:
-        """Predict POS, waste and CO2 amount for meals in today' menu across restaurants
+    def get_meals_prediction(self, meals_data: dict) -> list[dict]:
+        """Predict POS, waste and CO2 amount for meals given the menu
 
         Returns:
             list[dict]: List of records. Each record is a meal in restaurant with its predictions.
         """
 
-        # Parse meal names in raw string YLVA API
-        response = requests.get(URL_YLVA_API).json()
-
-        today = _get_today()
-        restaurants_list = []
-        for record in response:
-            if record["title"] in RESTAURANTS:
-                for menu in record["menuData"]["menus"]:
-                    if menu["date"] == today:
-                        meals = []
-                        for meal in menu["data"]:
-                            # Check if being one of the ignored cases
-                            if meal["price"]["name"] in ENTRY_TYPES:
-                                logger.debug(
-                                    f"{meal['name']} -> {ENTRY_TYPES[meal['price']['name']]}"
-                                )
-                                continue
-
-                            meals.append(
-                                {"name": meal["name"], "metadata": meal["meta"]["0"]}
-                            )
-
-                        meals_df = pl.from_records(meals).with_columns(
-                            pl.lit(record["title"]).alias("restaurant")
-                        )
-
-                        restaurants_list.append(meals_df)
-        restaurants = pl.concat(restaurants_list)
+        # Process meals_data to suitable format
+        date = meals_data["date"]
+        meals = pl.DataFrame(
+            {
+                "name": meals_data["meals"],
+                "restaurant": [meals_data["restaurant"]] * len(meals_data["meals"]),
+            }
+        )
 
         # Get corresponding meal ids
         out = db.fetch_meal_info()
@@ -280,7 +236,7 @@ class ModelService:
         names_meal = dim_meals.select("meal_id", "name").explode("name")
 
         menus: pl.DataFrame = (
-            restaurants
+            meals
             # Find most probable meal in the database for each entry
             .join(names_meal, how="cross")
             .with_columns(
@@ -294,12 +250,10 @@ class ModelService:
             .group_by("name", "restaurant")
             .agg(pl.all().sort_by("dist").first())
             .drop("name_right", "dist")
-            # Remap values in column `restaurant`
-            .with_columns(pl.col("restaurant").replace(map_restaurant))
             # Get meal_type
             .join(dim_meals.select("meal_id", "meal_type"), on="meal_id", how="left")
             # Add column `date`
-            .with_columns(pl.lit(datetime.now()).dt.date().alias("date"))
+            .with_columns(pl.lit(date).str.to_date().alias("date"))
             # Add column `index` (indicate which meals come in same menu)
             .join(indices, on="restaurant", how="left")
         )
@@ -324,6 +278,6 @@ class ModelService:
         )
 
         # Post-process
-        menus = menus.with_columns(pl.col("date").dt.strftime("%Y-%m-%d"))
+        menus = menus.drop("restaurant", "index", "date", "meal_id")
 
         return menus.to_dicts()

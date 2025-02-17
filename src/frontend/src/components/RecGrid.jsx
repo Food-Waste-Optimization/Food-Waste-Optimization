@@ -91,11 +91,16 @@ export default function RecGrid({
 
   const mealIdToNameMap = new Map();
   const mealKelaMap = new Map();
+  const mealGlutenFreeMap = new Map();
   const mealTypeMap = new Map();
 
   mealsData.forEach((meal) => {
     mealIdToNameMap.set(meal.meal_id, meal.name);
-    mealKelaMap.set(meal.meal_id, meal.is_kela);
+    mealKelaMap.set(meal.meal_id, meal.attributes.includes("kela"));
+    mealGlutenFreeMap.set(
+      meal.meal_id,
+      meal.attributes.includes("gluten_free")
+    );
     mealTypeMap.set(meal.meal_id, meal.meal_type);
   });
 
@@ -421,6 +426,7 @@ export default function RecGrid({
                       (mealId) => {
                         const mealName = mealIdToNameMap.get(mealId) || "";
                         const isKela = mealKelaMap.get(mealId);
+                        const isGlutenFree = mealGlutenFreeMap.get(mealId);
                         const mealType = mealTypeMap.get(mealId) || "";
                         const backgroundColor =
                           weekColors[getSelectedPageForWeek() - 1] || "#66BB6A";
@@ -477,6 +483,19 @@ export default function RecGrid({
                                   }}
                                 >
                                   {mealType}
+                                </span>
+                              )}{" "}
+                              {isGlutenFree && (
+                                <span
+                                  style={{
+                                    backgroundColor: "#D6CFCB",
+                                    padding: "3px 5px",
+                                    borderRadius: "4px",
+                                    fontSize: "12px",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  GF
                                 </span>
                               )}
                             </p>
