@@ -302,8 +302,8 @@ class ModelService:
 
             # Fill null cells of column `co2` and `waste`
             .with_columns(
-                pl.col('co2').fill_null(DEFAULT_CO2),
-                pl.col('biowaste').fill_null(DEFAULT_WASTE),
+                pl.col('co2').fill_nan(DEFAULT_CO2),
+                pl.col('waste').fill_nan(DEFAULT_WASTE),
             )
 
         )  # fmt: skip
