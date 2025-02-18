@@ -69,6 +69,8 @@ indices = pl.from_records(
         {"restaurant": "vik", "index": 4},
     ]
 )
+DEFAULT_CO2 = 0.4
+DEFAULT_WASTE = 0.01
 
 
 def _hamming_distance(s1: str, s2: str) -> float:
@@ -250,18 +252,26 @@ class ModelService:
             .group_by("name", "restaurant")
             .agg(pl.all().sort_by("dist").first())
             .drop("name_right", "dist")
+
+
             # Get meal_type
             .join(dim_meals.select("meal_id", "meal_type"), on="meal_id", how="left")
+
+
             # Add column `date`
             .with_columns(pl.lit(date).str.to_date().alias("date"))
+
+
             # Add column `index` (indicate which meals come in same menu)
             .join(indices, on="restaurant", how="left")
-        )
+        )  # fmt: skip
 
         # Predict POS, waste and CO2
         pos = self.forecast_pos(
-            menus.select("index", "meal_id", "date", "restaurant").to_pandas()
-        )
+            menus
+            .select("index", "meal_id", "date", "restaurant")
+            .to_pandas()
+        )  # fmt: skip
         assert pos is not None
         pos = pos[["meal_id", "restaurant", "pcs_pred"]].rename(
             columns={"pcs_pred": "pcs"}
@@ -271,13 +281,31 @@ class ModelService:
         co2 = db.fetch_co2_with_ids(meal_ids=meal_ids)
         biowaste = db.fetch_waste_with_ids(meal_ids=meal_ids)
 
+        # fmt: off
         menus = (
-            menus.join(pl.from_pandas(pos), on=["meal_id", "restaurant"], how="left")
+            menus
+            .join(pl.from_pandas(pos), on=["meal_id", "restaurant"], how="left")
             .join(pl.from_pandas(co2), on="meal_id", how="left")
             .join(pl.from_pandas(biowaste), on="meal_id", how="left")
         )
+        # fmt: on
 
         # Post-process
-        menus = menus.drop("restaurant", "index", "date", "meal_id")
+        menus = (
+            menus
+            
+            # Remove unneccesary columns
+            .drop("restaurant", "index", "date")
+
+            # Remove meals with unsuitable meal_type
+            .join(dim_mealtype2id.select('meal_type'), on='meal_type', how='inner')
+
+            # Fill null cells of column `co2` and `waste`
+            .with_columns(
+                pl.col('co2').fill_null(DEFAULT_CO2),
+                pl.col('biowaste').fill_null(DEFAULT_WASTE),
+            )
+
+        )  # fmt: skip
 
         return menus.to_dicts()
