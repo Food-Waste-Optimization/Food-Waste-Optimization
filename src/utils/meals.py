@@ -3,7 +3,18 @@ import json
 from datetime import datetime
 
 
-def get_restaurant_menus(restaurant_name: str, data) -> list:
+def get_restaurant_menus(restaurant_name: str, data) -> list|None:
+    """
+    Function for parsing the key-value pairs matching the given
+    restaurant name from JSON data.
+
+    Args:
+        restaurant_name (str): A string containing the restaurant's name
+        data (JSON): Data in JSON format.
+
+    Returns:
+        list|None: The matching key-value pairs as a list.
+    """
     result = []
     for item in data:
         if item["title"].lower() == restaurant_name.lower():
@@ -14,7 +25,24 @@ def get_restaurant_menus(restaurant_name: str, data) -> list:
     return None
 
 
-def get_meal_data(restaurant: str, url: str, date: datetime = datetime.today()) -> dict:
+def get_meal_data(restaurant: str, url: str, date: datetime = datetime.today()) -> dict|None:
+    """
+    Function for getting meal data for a given restaurant name
+    from JSON data located at given address.
+    Date defaults to current day.
+
+    Args:
+        restaurant (str): A string containing the restaurant's name
+        url (str): The url for restaurant data
+        date (datetime): Optional, a date in datetime format, defaulting to today
+    Returns:
+        dict|None: A dictionary of the format
+                   {
+                    "meals": A list containing meal names for the day
+                    "restaurant": The abbreviated restaurant name
+                    "date": The date as a str
+                   }
+    """
     response = urlopen(url)
 
     data_json = json.loads(response.read())
@@ -29,14 +57,14 @@ def get_meal_data(restaurant: str, url: str, date: datetime = datetime.today()) 
 
     for item in menus:
         if item["data"] and item["date"].split()[1] == date.strftime("%d.%m."):
-            for dish in item["data"]:
+            for meal in item["data"]:
                 # Ignore announcements in meal data. "Lakkouhka" is about a strike.
                 # Makeasti and Lisuke stand for Dessert and Side dish respectively.
-                if "Lakkouhka" not in dish["name"] and dish["price"]["name"] not in [
+                if "Lakkouhka" not in meal["name"] and meal["price"]["name"] not in [
                     "Makeasti",
                     "Lisuke",
                 ]:
-                    meals.append(dish["name"])
+                    meals.append(meal["name"])
 
     match restaurant.lower():
         case "chemicum":
