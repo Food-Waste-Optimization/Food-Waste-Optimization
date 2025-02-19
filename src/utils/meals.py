@@ -25,7 +25,7 @@ def get_restaurant_menus(restaurant_name: str, data) -> list|None:
     return None
 
 
-def get_meal_data(restaurant: str, url: str, date: datetime = datetime.today()) -> dict|None:
+def get_meal_data(restaurant: str, url: str, date: datetime) -> dict|None:
     """
     Function for getting meal data for a given restaurant name
     from JSON data located at given address.

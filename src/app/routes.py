@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pandas as pd
 from flask import Blueprint, make_response, render_template, request
 from pandas._libs.tslibs.parsing import DateParseError
@@ -113,7 +115,7 @@ def visualize():
 
     if resp is None:
         assert isinstance(restaurant, str)
-        meal_data = get_meal_data(restaurant, URL_YLVA_API)
+        meal_data = get_meal_data(restaurant, URL_YLVA_API, datetime.today())
 
         assert len(meal_data["meals"]) > 0
 
