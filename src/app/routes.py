@@ -117,10 +117,11 @@ def visualize():
         assert isinstance(restaurant, str)
         meal_data = get_meal_data(restaurant, URL_YLVA_API, datetime.today())
 
-        assert len(meal_data["meals"]) > 0
-
         # Predict
-        meal_info = model.get_meals_prediction(meal_data)
+        if len(meal_data["meals"]) > 0:
+            meal_info = model.get_meals_prediction(meal_data)
+        else:
+            meal_info = []
 
         restaurant = meal_data["restaurant"]
         date = meal_data["date"]
