@@ -1,2 +1,9 @@
 PATHS:
   meals: data/processed/embedding_tuning/meals.parquet
+
+bsz: 128
+d_hid: 32
+d_embd: 1024
+tau: .07
+lr: 1e-3
+num_epoch: 20
