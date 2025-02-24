@@ -5,5 +5,5 @@ bsz: 128
 d_hid: 32
 d_embd: 1024
 tau: .07
-lr: 1e-3
+lr: 3e-4
 num_epoch: 20
