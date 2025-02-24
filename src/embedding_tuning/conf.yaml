@@ -1,0 +1,2 @@
+PATHS:
+  meals: data/processed/embedding_tuning/meals.parquet
