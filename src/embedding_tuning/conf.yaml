@@ -1,5 +1,6 @@
 PATHS:
   meals: data/processed/embedding_tuning/meals.parquet
+  ckpt: weights/embedding_tuning/stage-1_[date].pt
 
 bsz: 128
 d_hid: 32
