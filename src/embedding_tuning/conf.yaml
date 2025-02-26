@@ -1,10 +1,10 @@
 PATHS:
   meals: data/processed/embedding_tuning/meals.parquet
-  ckpt: weights/embedding_tuning/stage-1_[date].pt
+  ckpt: weights/embedding_tuning/stage-1_[date]
 
-bsz: 128
+bsz: 64
 d_hid: 32
 d_embd: 1024
 tau: .07
-lr: 3e-4
-num_epoch: 20
+lr: 1e-3
+num_epoch: 80
