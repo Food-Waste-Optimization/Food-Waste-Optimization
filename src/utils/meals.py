@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 
 
-def get_restaurant_menus(restaurant_name: str, data) -> list|None:
+def get_restaurant_menus(restaurant_name: str, data) -> list | None:
     """
     Function for parsing the key-value pairs matching the given
     restaurant name from JSON data.
@@ -25,7 +25,7 @@ def get_restaurant_menus(restaurant_name: str, data) -> list|None:
     return None
 
 
-def get_meal_data(restaurant: str, url: str, date: datetime) -> dict|None:
+def get_meal_data(restaurant: str, url: str, date: datetime) -> dict | None:
     """
     Function for getting meal data for a given restaurant name
     from JSON data located at given address.
@@ -58,9 +58,11 @@ def get_meal_data(restaurant: str, url: str, date: datetime) -> dict|None:
     for item in menus:
         if item["data"] and item["date"].split()[1] == date.strftime("%d.%m."):
             for meal in item["data"]:
-                # Ignore announcements in meal data. "Lakkouhka" is about a strike.
+                # Ignore announcements in meal data. "RAVINTOLA SULJETTU" means restaurant closed,
+                # "Lakkouhka" is about a strike.
                 # Makeasti and Lisuke stand for Dessert and Side dish respectively.
-                if "Lakkouhka" not in meal["name"] and meal["price"]["name"] not in [
+                if meal["name"] not in ["Lakkouhka",
+                                        "RAVINTOLA SULJETTU"] and meal["price"]["name"] not in [
                     "Makeasti",
                     "Lisuke",
                 ]:
