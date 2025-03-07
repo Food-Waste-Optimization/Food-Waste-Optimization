@@ -61,10 +61,12 @@ def get_meal_data(restaurant: str, url: str, date: datetime) -> dict | None:
                 # Ignore announcements in meal data. "RAVINTOLA SULJETTU" means restaurant closed,
                 # "Lakkouhka" is about a strike.
                 # Makeasti and Lisuke stand for Dessert and Side dish respectively.
+                # Tiedoitus is for announcements.
                 if meal["name"] not in ["Lakkouhka",
                                         "RAVINTOLA SULJETTU"] and meal["price"]["name"] not in [
                     "Makeasti",
                     "Lisuke",
+                    "Tiedoitus"
                 ]:
                     meals.append(meal["name"])
 
