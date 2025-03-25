@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { styled } from "@mui/material/styles";
+import React from "react";
 
-import LandingPage from "./LandingPage.jsx";
+import Today from "./Today.jsx";
 import Dashboard from "./Dashboard";
 
 import logofood from "../img/logo_foodwaste.png";
@@ -13,6 +14,8 @@ const CustomTabs = styled(Tabs)({
   "& .MuiTabs-indicator": {
     backgroundColor: "#155C2C",
   },
+  position: "absolute",
+  right: 0,
 });
 
 const CustomTab = styled(Tab)({
@@ -21,16 +24,19 @@ const CustomTab = styled(Tab)({
   },
 });
 
-function CustomTabPanel(props) {
-  const { children, value, index, ...other } = props;
+// Prevent unnecessary rerenders
+const MemoizedDashboard = React.memo(Dashboard);
+const MemoizedToday = React.memo(Today);
 
+function CustomTabPanel({ children, value, index }) {
   return (
-    <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && (
-        <Box sx={{ pt: 1, px: 3 }}>
-          <div>{children}</div>
-        </Box>
-      )}
+    <div
+      role="tabpanel"
+      style={{
+        display: value === index ? "block" : "none", // Hide instead of unmounting
+      }}
+    >
+      <Box sx={{ pt: 1, px: 3 }}>{children}</Box>
     </div>
   );
 }
@@ -42,27 +48,18 @@ export default function TabMenu() {
     setValue(newValue);
   };
 
-  const handleSwitchTab = () => {
-    setValue(1);
-  };
+  const dashboardComponent = useMemo(() => <MemoizedDashboard />, []);
+  const todayComponent = useMemo(() => <MemoizedToday />, []);
 
   return (
     <div className="min-h-screen bg-emerald-50 p-4">
-      <div className="flex items-center justify-start px-4 pt-1 w-full">
-        {" "}
-        <div className="flex items-center space-x-4 mb-4 md:mb-0">
-          {" "}
-          <div className="flex items-center">
-            <img src={logofood} width={40} alt="Food Logo" />{" "}
-          </div>
-          <div className="text-left">
-            <h1 className="text-lg font-bold text-[#155C2C] px-2 pt-2">
-              {" "}
-              YLVA AI Menu Planner
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2 pt-2">
-            {" "}
+      <div className="flex items-center justify-between px-4 pt-1 w-full relative">
+        <div className="flex items-center space-x-4">
+          <img src={logofood} width={40} alt="Food Logo" />
+          <h1 className="text-lg font-bold text-[#155C2C] px-2 pt-2">
+            YLVA AI Menu Planner
+          </h1>
+          <div className="flex items-center space-x-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="60"
@@ -113,9 +110,18 @@ export default function TabMenu() {
             </svg>
           </div>
         </div>
+        <CustomTabs value={value} onChange={handleChange}>
+          <CustomTab label="Planner" />
+          <CustomTab label="Today's forecast" />
+        </CustomTabs>
       </div>
 
-      <Dashboard />
+      <CustomTabPanel value={value} index={0}>
+        {dashboardComponent}
+      </CustomTabPanel>
+      <CustomTabPanel value={value} index={1}>
+        {todayComponent}
+      </CustomTabPanel>
     </div>
   );
 }
