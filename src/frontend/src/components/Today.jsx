@@ -264,7 +264,7 @@ export default function Co2WasteChart() {
                         {key === "sales"
                           ? "Customer Forecast"
                           : key === "waste"
-                          ? "Waste Forecast"
+                          ? "Waste Forecast (kg)"
                           : "CO₂ Forecast (kg CO₂e)"}
                       </Typography>
                       <Pie
