@@ -50,6 +50,8 @@ const adjustColorShade = (baseColor, index) => {
 };
 
 const preparePieChartData = (meals, key) => {
+  const mealTypeOccurrences = {};
+
   return {
     labels: meals.map((meal) => meal.name),
     datasets: [
@@ -57,12 +59,13 @@ const preparePieChartData = (meals, key) => {
         data: meals.map((meal) =>
           key === "sales" ? meal.pcs : meal[key] * meal.pcs
         ),
-        backgroundColor: meals.map((meal, index) =>
-          adjustColorShade(
-            mealTypeColors[meal.meal_type] || mealTypeColors.default,
-            index
-          )
-        ),
+        backgroundColor: meals.map((meal) => {
+          const baseColor =
+            mealTypeColors[meal.meal_type] || mealTypeColors.default;
+          const index = mealTypeOccurrences[meal.meal_type] || 0;
+          mealTypeOccurrences[meal.meal_type] = index + 1;
+          return adjustColorShade(baseColor, index);
+        }),
       },
     ],
   };
