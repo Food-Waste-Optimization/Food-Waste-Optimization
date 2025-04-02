@@ -227,3 +227,4 @@ wandb/
 tb_logs
 uv.lock
 notebooks/analytics/results
+artifacts/
