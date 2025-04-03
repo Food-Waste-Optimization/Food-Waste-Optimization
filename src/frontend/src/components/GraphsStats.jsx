@@ -266,7 +266,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
               variant="h6"
               sx={{ marginBottom: "-20px", textAlign: "center" }}
             >
-              Weekly waste per day forecast (kg)
+              Waste per plate forecast for selected week (kg)
             </Typography>
 
             <Box sx={{ width: "100%", height: "350px" }}>
@@ -283,7 +283,8 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
                       label: "Waste (kg)",
                       data: chartData.flatMap((data) =>
                         data.mealSets.map(
-                          (set) => set.totalWasteHectograms / 10
+                          (set) =>
+                            set.totalWasteHectograms / set.totalSales / 10
                         )
                       ),
                       backgroundColor: chartData.flatMap((data) =>
@@ -305,7 +306,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
                       align: "center",
                       anchor: "center",
                       padding: 5,
-                      formatter: (value) => value.toFixed(2),
+                      formatter: (value) => value.toFixed(3),
                     },
                   },
                   scales: {
@@ -343,7 +344,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
               variant="h6"
               sx={{ marginBottom: "-20px", textAlign: "center" }}
             >
-              Weekly emissions per day forecast (kg CO₂e)
+              Emissions per plate forecast for selected week (kg CO₂e)
             </Typography>
 
             <Box sx={{ width: "100%", height: "350px" }}>
@@ -359,7 +360,9 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
                     {
                       label: "CO₂ emissions (kg CO₂e)",
                       data: chartData.flatMap((data) =>
-                        data.mealSets.map((set) => set.totalCO2)
+                        data.mealSets.map(
+                          (set) => set.totalCO2 / set.totalSales
+                        )
                       ),
                       backgroundColor: chartData.flatMap((data) =>
                         data.mealSets.map((_, index) => getColorForSet(index))
@@ -380,7 +383,7 @@ export default function GraphsStats({ mealDetails, restaurant, selectedWeek }) {
                       align: "center",
                       anchor: "center",
                       padding: 5,
-                      formatter: (value) => value.toFixed(2),
+                      formatter: (value) => value.toFixed(3),
                     },
                   },
                   scales: {

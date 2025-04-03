@@ -52,13 +52,15 @@ const adjustColorShade = (baseColor, index) => {
 const preparePieChartData = (meals, key) => {
   const mealTypeOccurrences = {};
 
+  const values = meals.map((meal) => (key === "sales" ? meal.pcs : meal[key]));
+
+  const total = values.reduce((sum, val) => sum + val, 0);
+
   return {
     labels: meals.map((meal) => meal.name),
     datasets: [
       {
-        data: meals.map((meal) =>
-          key === "sales" ? meal.pcs : meal[key] * meal.pcs
-        ),
+        data: values,
         backgroundColor: meals.map((meal) => {
           const baseColor =
             mealTypeColors[meal.meal_type] || mealTypeColors.default;
@@ -68,16 +70,27 @@ const preparePieChartData = (meals, key) => {
         }),
       },
     ],
+    total,
   };
 };
 
 const prepareBarChartData = (meals, key) => {
-  const roundedData = meals.map((meal) => {
-    const value = key === "sales" ? meal.pcs : meal[key] * meal.pcs;
-    return key === "sales" ? Math.round(value) : Math.round(value * 100) / 100;
+  if (key !== "waste") {
+    return meals.reduce(
+      (acc, meal) => acc + (key === "sales" ? meal.pcs : meal[key]),
+      0
+    );
+  }
+
+  let totalWaste = 0;
+  let totalSales = 0;
+
+  meals.forEach((meal) => {
+    totalWaste += meal.waste * meal.pcs;
+    totalSales += meal.pcs;
   });
 
-  return roundedData.reduce((acc, value) => acc + value, 0); // Sum the values after rounding
+  return totalSales > 0 ? totalWaste / totalSales : 0;
 };
 
 export default function Co2WasteChart() {
@@ -212,8 +225,8 @@ export default function Co2WasteChart() {
                     {key === "sales"
                       ? "Total Customer Forecast"
                       : key === "waste"
-                      ? "Total Waste Forecast (kg)"
-                      : " Total CO₂ Forecast (kg CO₂e)"}
+                      ? "Waste per plate forecast (kg)"
+                      : "CO₂ per plate forecast (kg CO₂e)"}
                   </Typography>
                   <Bar
                     data={{
@@ -265,10 +278,10 @@ export default function Co2WasteChart() {
                       <Typography variant="h6">
                         {location} -{" "}
                         {key === "sales"
-                          ? "Customer Forecast"
+                          ? "Customer forecast"
                           : key === "waste"
-                          ? "Waste Forecast (kg)"
-                          : "CO₂ Forecast (kg CO₂e)"}
+                          ? "Waste per plate forecast by dish (kg)"
+                          : "CO₂ per plate forecast by dish (kg CO₂e)"}
                       </Typography>
                       <Pie
                         data={preparePieChartData(data[location], key)}
@@ -280,10 +293,23 @@ export default function Co2WasteChart() {
                             datalabels: {
                               color: "#5a6268",
                               font: { weight: "bold" },
-                              formatter: (value) => {
+                              formatter: (value, ctx) => {
+                                const dataset = ctx.chart.data.datasets[0];
+                                const total = dataset.data.reduce(
+                                  (sum, val) => sum + val,
+                                  0
+                                );
+
+                                const percentage =
+                                  total > 0
+                                    ? ((value / total) * 100).toFixed(1) + "%"
+                                    : "0%";
+
                                 return key === "sales"
-                                  ? Math.round(value)
-                                  : Math.round(value * 100) / 100;
+                                  ? `${Math.round(value)} (${percentage})`
+                                  : `${(Math.round(value * 100) / 100).toFixed(
+                                      2
+                                    )} (${percentage})`;
                               },
                             },
                           },
