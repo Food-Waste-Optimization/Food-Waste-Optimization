@@ -226,6 +226,6 @@ Temporary Items
 wandb/
 tb_logs
 uv.lock
-notebooks/analytics/results
+notebooks/
 artifacts/
 logs/
