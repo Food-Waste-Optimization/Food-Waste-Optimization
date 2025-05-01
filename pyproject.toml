@@ -23,6 +23,7 @@ dependencies = [
     "loguru>=0.7.3",
     "pyyaml>=6.0.2",
     "networkx>=3.4.2",
+    "nbconvert>=7.16.6",
 ]
 
 [dependency-groups]
