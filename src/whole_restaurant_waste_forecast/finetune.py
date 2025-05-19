@@ -3,7 +3,6 @@ import datetime
 import sys
 from functools import partial
 
-import holidays
 import numpy as np
 import optuna
 import pandas as pd
@@ -20,6 +19,7 @@ from darts.models import (
     TSMixerModel,
     XGBModel,
 )
+from darts.timeseries import concatenate
 
 # from lightning.pytorch.loggers import TensorBoardLogger
 from loguru import logger
@@ -166,6 +166,7 @@ def _f_objective(
                 raise NotImplementedError()
 
         series_pred = transformer_target.inverse_transform(series_pred)
+        assert isinstance(series_pred, TimeSeries)
         # series_pred = transformer.inverse_transform(series_train_diff.concatenate(series_pred)).drop_before(CUTOFF_DATE)
 
         df = pd.concat(
@@ -191,7 +192,7 @@ def main():
     logger.info(f"Restaurant: {args.restaurant}")
 
     # =================================================
-    # Load and process
+    # Load
     # =================================================
     path = "data/processed/waste.parquet"
     waste = pl.read_parquet(path)
@@ -199,6 +200,21 @@ def main():
     path = "data/processed/dim_restaurants.xlsx"
     dim_restaurants = pl.read_excel(path)
 
+    path = "data/processed/dim_meals.parquet"
+    dim_meals = pl.read_parquet(path)
+
+    path = "data/processed/pos.xlsx"
+    pos = pl.read_excel(path)
+
+    path = "data/processed/dim_exams_uhelsinki.xlsx"
+    dim_exam = pl.read_excel(path).filter(pl.col("date").dt.weekday() <= 5)
+
+    path = "data/processed/dim_holidays_uhelsinki.xlsx"
+    dim_holiday = pl.read_excel(path).filter(pl.col("date").dt.weekday() <= 5)
+
+    # =================================================
+    # Process
+    # =================================================
     waste_daily = (
         waste
         .drop('id', 'src')
@@ -236,103 +252,6 @@ def main():
         .fill_null(EPS)
     )  # fmt: skip
 
-    # Create dim 'exam'
-    date_begin = pd.to_datetime(waste_daily["date"].min())
-    date_end = pd.to_datetime(waste_daily["date"].max())
-
-    dim_exam = (
-        pl
-        .from_records([
-            {'date_begin': '2023-03-06', 'date_end': '2023-03-12'},  
-            {'date_begin': '2023-05-01', 'date_end': '2023-05-07'},
-            {'date_begin': '2023-10-23', 'date_end': '2023-10-29'},
-            {'date_begin': '2023-12-18', 'date_end': '2023-12-24'},
-            {'date_begin': '2024-03-04', 'date_end': '2024-03-10'},
-            {'date_begin': '2024-05-06', 'date_end': '2024-05-12'},
-            {'date_begin': '2024-10-21', 'date_end': '2024-10-27'},
-            {'date_begin': '2025-03-03', 'date_end': '2025-03-09'},
-        ])
-        .with_columns(
-            pl.col('date_begin').str.to_date(),
-            pl.col('date_end').str.to_date(),
-        )
-    )  # fmt: skip
-
-    df = (
-        pl.DataFrame()
-
-        # Create blank dataframe with date
-        .with_columns(
-            pl.date_range(date_begin, date_end, '1d').alias('date')
-        )
-    )  # fmt: skip
-
-    entries_exam = (
-        df
-        .join(dim_exam, how='cross')
-        .filter(
-            (pl.col('date') >= pl.col('date_begin'))
-            & (pl.col('date') <= pl.col('date_end'))
-        )
-        .select(
-            'date',
-            pl.lit(1).alias('exam')
-        )
-    )  # fmt: skip
-    cov_exam = (
-        df
-        .join(entries_exam, on='date', how='left')
-        .with_columns(
-            pl
-            .col('exam')
-            .fill_null(0)
-            .cast(pl.String())
-            .cast(pl.Categorical())
-        )
-
-        # Remove non-business days
-        .filter(pl.col('date').dt.weekday() < 6)
-    )  # fmt: skip
-
-    # Create dim holiday
-    fin_holidays = holidays.Finland(years=[2023, 2024, 2025])
-    dim_holiday = pl.from_records([{"date": d, "name_holiday": n} for d, n in fin_holidays.items()])
-    cov_holiday = (
-        pl.DataFrame()
-
-        # Create blank dataframe with date
-        .with_columns(
-            pl.date_range(date_begin, date_end, '1d').alias('date')
-        )
-
-
-        # Add dim holiday
-        .join(dim_holiday, on='date', how='left')
-        .with_columns(pl.col('name_holiday').is_not_null().cast(pl.Int32).alias('holiday'))
-        .drop('name_holiday')
-
-
-        # Cast to categorical type
-        .with_columns(
-            pl
-            .col('holiday')
-            # .cast(pl.String())
-            # .cast(pl.Categorical())
-        )
-
-        # Remove non-business days
-        .filter(pl.col('date').dt.weekday() < 6)
-    )  # fmt: skip
-
-    # Create Timeseries instances from tables
-    series_exam = TimeSeries.from_dataframe(
-        df=cov_exam.to_pandas(), time_col="date", freq="b", fill_missing_dates=False, value_cols="exam"
-    )
-
-    series_holiday = TimeSeries.from_dataframe(
-        df=cov_holiday.to_pandas(), time_col="date", freq="b", fill_missing_dates=False, value_cols="holiday"
-    )
-
     series = TimeSeries.from_dataframe(
         waste_daily.to_pandas(),
         time_col="date",
@@ -341,7 +260,72 @@ def main():
         freq="B",
     ).astype(np.float32)
 
-    series_cov = series_exam.concatenate(series_holiday, axis=1).astype(np.float32)
+    # Create series for dim_exam
+    series_exam = TimeSeries.from_dataframe(
+        df=dim_exam.to_pandas(), time_col="date", freq="b", fill_missing_dates=False, value_cols="is_exam"
+    )
+
+    # Create series for dim_holiday
+    series_holiday = (
+        TimeSeries.from_dataframe(
+            df=dim_holiday.to_pandas(), time_col="date", freq="b", fill_missing_dates=True, value_cols="is_holiday"
+        )
+        # .astype(np.float32)
+    )
+
+    # Create series for dim_meal_types_count
+    dim_meal_types_count = (
+        pos
+        .with_columns(
+            pl.col('datetime').dt.date().alias('date')
+        )
+        .select('restaurant', 'date', 'meal_id')
+        .unique()
+
+        .join(
+            dim_meals.select('id', 'meal_type'),
+            left_on='meal_id',
+            right_on='id',
+            how='left'
+        )
+        .filter(pl.col('meal_type') <= 5)
+        .group_by('date', 'restaurant', 'meal_type')
+        .len('count')
+
+        .join(
+            dim_restaurants.select('restaurant_id', 'restaurant_short'),
+            left_on='restaurant',
+            right_on='restaurant_id',
+            how='left'
+        )
+        .drop('restaurant')
+        .rename({'restaurant_short': 'restaurant'})   
+
+        .pivot(index=['date', 'restaurant'], on='meal_type', values='count')
+        .fill_null(0)
+
+
+        .filter(
+            (1 == 1)
+            & (pl.col('restaurant') == pl.lit(args.restaurant))
+            & (pl.col('date').dt.weekday() <= 5)
+        )
+    )  # fmt: skip
+
+    series_meal_types = TimeSeries.from_dataframe(
+        df=dim_meal_types_count.to_pandas(),
+        time_col="date",
+        freq="b",
+        fill_missing_dates=True,
+        fillna_value=0,
+        value_cols=["1", "2", "3", "4", "5"],
+    )
+
+    min_samples = min(len(series_exam), len(series_holiday), len(series_meal_types))
+
+    series_cov = concatenate(
+        [series_exam[:min_samples], series_holiday[:min_samples], series_meal_types[:min_samples]], axis=1
+    ).astype(np.float32)
 
     # =================================================
     # Fine-tune
@@ -349,10 +333,13 @@ def main():
     # Transform data
     series_train, series_test = series.split_before(CUTOFF_DATE)
 
-    series_train_transformed: TimeSeries = series_train
-
     transformer_target = Scaler(MinMaxScaler(feature_range=(-1, 1)))
-    series_train_transformed = transformer_target.fit_transform(series_train_transformed)
+    series_train_transformed = transformer_target.fit_transform(series_train)
+    assert isinstance(series_train_transformed, TimeSeries)
+
+    transformer_cov = Scaler(MinMaxScaler(feature_range=(-1, 1)))
+    series_cov_transformed = transformer_cov.fit_transform(series_cov)
+    assert isinstance(series_cov_transformed, TimeSeries)
 
     # Tune
     model_names = [
@@ -372,7 +359,7 @@ def main():
             model_name=model_name,
             series_train_transformed=series_train_transformed,
             series_test=series_test,
-            series_cov=series_cov,
+            series_cov=series_cov_transformed,
             transformer_target=transformer_target,
         )
 
