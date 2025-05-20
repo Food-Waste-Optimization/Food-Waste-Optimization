@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import sys
 from functools import partial
 
@@ -24,7 +23,6 @@ from darts.timeseries import concatenate
 # from lightning.pytorch.loggers import TensorBoardLogger
 from loguru import logger
 from optuna.trial import Trial
-from pytorch_lightning.callbacks import TQDMProgressBar
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.preprocessing import MinMaxScaler
 
@@ -57,9 +55,9 @@ def _f_objective(
 
     input_chunk_length = trial.suggest_categorical("input_chunk_length", [2, 3, 5, 7, 15, 30, 40, 60])
     output_chunk_length = trial.suggest_categorical("output_chunk_length", [1, 7, 15, 30, 60, len(series_test)])
-    num_epochs = trial.suggest_categorical("num_epochs", [200, 400, 600])
+    num_epochs = trial.suggest_categorical("num_epochs", [200, 400, 600, 800])
 
-    version = datetime.datetime.now().strftime("%m-%d_%H-%M-%S")
+    # version = datetime.datetime.now().strftime("%m-%d_%H-%M-%S")
 
     # Define params
     add_encoders = {
@@ -79,13 +77,13 @@ def _f_objective(
         "add_encoders": {**add_encoders},
         "n_epochs": num_epochs,
         "pl_trainer_kwargs": {
-            "callbacks": [TQDMProgressBar(refresh_rate=4)],
+            # "callbacks": [TQDMProgressBar(refresh_rate=4)],
             "logger": [
                 # TensorBoardLogger(
                 #     "logs/tensorboard", name=f"{model_name}-{restaurant}", version=version, default_hp_metric=False
                 # )
             ],
-            "precision": "32-true",
+            # "precision": "32-true",
         },
         "optimizer_kwargs": {"lr": 5e-4},
     }
@@ -321,10 +319,24 @@ def main():
         value_cols=["1", "2", "3", "4", "5"],
     )
 
-    min_samples = min(len(series_exam), len(series_holiday), len(series_meal_types))
+    min_time = max(
+        series_exam.time_index[0],
+        series_holiday.time_index[0],
+        series_meal_types.time_index[0],
+    )
+    max_time = min(
+        series_exam.time_index[-1],
+        series_holiday.time_index[-1],
+        series_meal_types.time_index[-1],
+    )
 
     series_cov = concatenate(
-        [series_exam[:min_samples], series_holiday[:min_samples], series_meal_types[:min_samples]], axis=1
+        [
+            series_exam[min_time:max_time],
+            series_holiday[min_time:max_time],
+            series_meal_types[min_time:max_time],
+        ],
+        axis=1,
     ).astype(np.float32)
 
     # =================================================
