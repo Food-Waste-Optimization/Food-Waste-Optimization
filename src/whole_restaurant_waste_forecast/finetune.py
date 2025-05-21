@@ -338,13 +338,12 @@ def main():
         ],
         axis=1,
     ).astype(np.float32)
+    series_train, series_test = series[min_time:max_time].split_before(CUTOFF_DATE)
 
     # =================================================
     # Fine-tune
     # =================================================
     # Transform data
-    series_train, series_test = series.split_before(CUTOFF_DATE)
-
     transformer_target = Scaler(MinMaxScaler(feature_range=(-1, 1)))
     series_train_transformed = transformer_target.fit_transform(series_train)
     assert isinstance(series_train_transformed, TimeSeries)
