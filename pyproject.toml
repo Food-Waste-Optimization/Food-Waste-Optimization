@@ -23,6 +23,7 @@ dependencies = [
     "loguru>=0.7.3",
     "pyyaml>=6.0.2",
     "optuna>=4.3.0",
+    "tensorflow>=2.19.0",
 ]
 
 [dependency-groups]

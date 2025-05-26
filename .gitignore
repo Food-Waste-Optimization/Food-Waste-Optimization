@@ -229,3 +229,4 @@ uv.lock
 notebooks/
 artifacts/
 logs/
+trained_models
