@@ -6,17 +6,11 @@ import warnings
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-import joblib
-import numpy as np
 import pandas as pd
-import polars as pl
-from darts import TimeSeries
-from darts.dataprocessing.transformers import Scaler
-from darts.models import CatBoostModel, LinearRegressionModel, NaiveMovingAverage
+from darts.models import CatBoostModel, NaiveMovingAverage
 from darts.models.forecasting.forecasting_model import ForecastingModel
-from darts.utils.utils import generate_index
 from loguru import logger
-from pandas import DataFrame
+from pandas import DataFrame, Timestamp
 
 warnings.filterwarnings("ignore")
 
@@ -59,8 +53,11 @@ class WholeRestaurantWasteForecaster(Forecaster):
         return WholeRestaurantWasteForecaster(model)
 
     def forecast(self, date: str, **kwargs) -> DataFrame:
+        assert self.model.training_series
         last_training_date = self.model.training_series.time_index[-1]
-        days = (pd.to_datetime(date) - last_training_date).days
+        assert isinstance(last_training_date, Timestamp)
+
+        days = len(pd.date_range("2025-03-31", "2025-06-06", freq="b"))
         if days <= 0:
             logger.error(f"Forecasting date ({date}) must be after {last_training_date.date().strftime(r'%Y-%m-%d')}")
             sys.exit(1)
@@ -93,7 +90,9 @@ class WholeRestaurantPOSForecaster(Forecaster):
     def forecast(self, date: str, **kwargs) -> DataFrame:
         assert self.model.training_series
         last_training_date = self.model.training_series.time_index[-1]
-        days = (pd.to_datetime(date) - last_training_date).days
+        assert isinstance(last_training_date, Timestamp)
+
+        days = len(pd.date_range(last_training_date, date, freq="b"))
         if days <= 0:
             logger.error(f"Forecasting date ({date}) must be after {last_training_date.date().strftime(r'%Y-%m-%d')}")
             sys.exit(1)
@@ -138,76 +137,21 @@ class PerMealPOSForecasterGeneral(Forecaster):
 class PerMealPOSForecaster(Forecaster):
     """Forecaster dedicated for meals having historical data (i.e. having model)"""
 
-    def __init__(self, model: "ForecastingModel", transformer_tgt: Scaler, transformer_cov: Scaler | None) -> None:
+    def __init__(self, model: "ForecastingModel") -> None:
         self.model = model
-        self.transformer_tgt = transformer_tgt
-        self.transformer_cov = transformer_cov
 
     @classmethod
     def load(cls, path_dir: Path, **kwargs) -> PerMealPOSForecaster:
         # Load saved model
         path_model = path_dir / "model.pt"
-        path_scaler_tgt = path_dir / "scaler_tgt.gz"
 
-        model = LinearRegressionModel.load(path_model)
-        transformer_tgt = joblib.load(path_scaler_tgt)
+        model = NaiveMovingAverage.load(path_model)
 
-        # Load covariate transformer
-        if isinstance(model, LinearRegressionModel):
-            path_scaler_cov = path_dir / "scaler_cov.gz"
-            transformer_cov = joblib.load(path_scaler_cov)
-        else:
-            transformer_cov = None
-
-        return PerMealPOSForecaster(model, transformer_tgt, transformer_cov)
+        return PerMealPOSForecaster(model)
 
     def forecast(self, date: str, **kwargs) -> DataFrame:
         # Forecast
-        match self.model:
-            case NaiveMovingAverage():
-                preds_raw = self.model.predict(1, verbose=False)
-            case LinearRegressionModel():
-                # Prepare date covariate
-                cov_df = (
-                    pl
-                    .DataFrame()
-                    .with_columns(
-                        pl.lit(date).str.to_date().alias('date')
-                    )
-                    .with_columns(
-                        pl.col('date').dt.weekday().alias('weekday'),
-                        pl.col('date').dt.day().alias('day'),
-                        pl.col('date').dt.week().alias('week'),
-                        pl.col('date').dt.month().alias('month'),
-                        pl.col('date').dt.year().alias('year'),
-                    )
-                    .with_columns(
-                        (pl.col('weekday') * 2 * np.pi / 7).sin().alias('weekday_sin'),
-                        (pl.col('weekday') * 2 * np.pi / 7).cos().alias('weekday_cos'),
-                        (pl.col('day') * 2 * np.pi / 31).sin().alias('day_sin'),
-                        (pl.col('day') * 2 * np.pi / 31).cos().alias('day_cos'),
-                        (pl.col('week') * 2 * np.pi / 53).sin().alias('week_sin'),
-                        (pl.col('week') * 2 * np.pi / 53).cos().alias('week_cos'),
-                        (pl.col('month') * 2 * np.pi / 12).sin().alias('month_sin'),
-                        (pl.col('month') * 2 * np.pi / 12).cos().alias('month_cos'),
-                    )
-                    .drop('date')
-                    .to_pandas()
-                )  # fmt: skip
-                idx_cov = len(self.model.future_covariate_series.time_index)
-                series_cov_new = TimeSeries.from_times_and_values(
-                    times=generate_index(idx_cov, idx_cov), values=cov_df.to_numpy(), columns=cov_df.columns
-                )
-
-                series_cov_new_transformed = self.transformer_cov.transform(series_cov_new)
-
-                # Predict
-                preds_raw = self.model.predict(1, future_covariates=series_cov_new_transformed)
-            case _:
-                raise NotImplementedError()
-
-        # Post-process forecasted
-        pred = self.transformer_tgt.inverse_transform(preds_raw).to_series().item()
+        pred = self.model.predict(1, verbose=False).to_series().values.squeeze()
 
         return DataFrame({"date": [date], "forecasted": [pred]})
 
@@ -292,12 +236,11 @@ class ModelService:
 
         return self.models[self.name_whole_res_waste][str(restaurant)].forecast(date=date)
 
-    def forecast_pos_per_meal(
-        self, restaurant: int, meal_id: int, date: str, meal_type: int | None = None
-    ) -> float | None:
+    def forecast_pos_per_meal(self, restaurant: int, meal_id: int, date: str, meal_type: int | None = None) -> float:
         model_name = f"{restaurant}_{meal_id}"
 
         if model_name not in self.models[self.name_per_meal_pos]:
+            assert meal_type is not None
             out = self.models[self.name_per_meal_pos]["general"].forecast(
                 date=date, restaurant=restaurant, meal_type=meal_type
             )
@@ -306,7 +249,9 @@ class ModelService:
                 date=date, restaurant=restaurant, meal_id=meal_id
             )
 
-        return out
+        pos = out["forecasted"].item()
+
+        return pos
 
     def forecast_pos_restaurant(self, restaurant: int, date: str) -> float | None:
         if str(restaurant) not in self.models[self.name_whole_res_pos]:
@@ -322,7 +267,7 @@ def main():
         # print(ModelService().forecast_waste_restaurant(1, "2025-05-02"))
         # print(ModelService().forecast_pos_restaurant(1, "2025-05-02"))
         # print(ModelService().forecast_pos_per_meal(1, 1243, "2025-05-02", 2))
-        print(ModelService().forecast_pos_per_meal(1, 10, "2025-05-02"))
+        print(ModelService().forecast_pos_per_meal(1, 51, "2025-06-05", 1))
     except Exception as e:
         logger.exception(e)
 
