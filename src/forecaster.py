@@ -253,7 +253,7 @@ class ModelService:
 
         return pos
 
-    def forecast_pos_restaurant(self, restaurant: int, date: str) -> float | None:
+    def forecast_pos_restaurant(self, restaurant: int, date: str) -> DataFrame | None:
         if str(restaurant) not in self.models[self.name_whole_res_pos]:
             logger.error(f"Forecast whole restaurant pos: restaurant not found: {restaurant}")
 
