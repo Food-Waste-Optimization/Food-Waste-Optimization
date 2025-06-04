@@ -1,53 +1,54 @@
 
-CREATE TABLE IF NOT EXISTS meals (
-    meal_id         INT     PRIMARY KEY
-    ,aliases        TEXT[]
-    ,meal_type      TEXT
-    ,restaurant     TEXT[]
+-- Dim tables
+CREATE TABLE IF NOT EXISTS dim_restaurants (
+    restaurant_id       INT
+    ,restaurant         TEXT
+    ,restaurant_short   TEXT
+
+    ,CONSTRAINT pk_dim_restaurants PRIMARY KEY(restaurant_id)
+);
+
+CREATE TABLE IF NOT EXISTS dim_meal_types (
+    meal_type_id        INT     PRIMARY KEY
+    ,meal_type          TEXT
+    ,meal_type_en       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dim_meals (
+    id              INT     PRIMARY KEY
+    ,meal_codes     INT[]
+    ,names          TEXT[]
+    ,restaurants    INT[]
+    ,meal_type      INT
     ,schoolyear     TEXT
     ,attributes     TEXT[]
-);
+    ,co2            FLOAT
+    ,src            TEXT[]
 
--- CREATE TABLE IF NOT EXISTS pieces_per_dish (
---     meal_id     INT     NOT NULL
---     ,restaurant TEXT    not null
---     ,date       date    NOT NULL
---     ,pcs        float   not null
-
---     ,constraint pk_pieces_per_dish primary key (meal_id, date, restaurant)
--- );
-
-
-CREATE TABLE IF NOT EXISTS pieces_whole (
-    date        date    NOT NULL
-    ,restaurant TEXT    NOT NULL
-    ,pcs        float   not null
-
-    ,constraint pk_pieces_whole primary key (date, restaurant)
-);
-
-CREATE TABLE IF NOT EXISTS biowaste (
-    meal_id     INT     PRIMARY KEY
-    ,waste      float   not null
+    -- ,CONSTRAINT fk_dim_restaurants FOREIGN KEY(restaurants) REFERENCES dim_restaurants(restaurant_id)
+    ,CONSTRAINT fk_dim_meal_types FOREIGN KEY(meal_type) REFERENCES dim_meal_types(meal_type_id)
 );
 
 
-CREATE TABLE IF NOT EXISTS co2 (
-    meal_id     INT     PRIMARY KEY
-    ,co2        float   not null
+-- Fact tables
+CREATE TABLE IF NOT EXISTS menus (
+    id                  TEXT    PRIMARY KEY
+    ,weeklevel_idx      UUID    NOT NULL
+    ,restaurant         INT     NOT NULL
+    ,date               DATE    NOT NULL
+    ,whole_pos          FLOAT   NOT NULL
+    ,whole_waste        FLOAT   NOT NULL
+    ,score              FLOAT   NOT NULL
+
+    ,CONSTRAINT fk_dim_restaurants FOREIGN KEY(restaurant) REFERENCES dim_restaurants(restaurant_id)
 );
 
-CREATE TABLE IF NOT EXISTS menu (
-    date                    DATE    NOT NULL
-    ,restaurant             TEXT    not null
-    ,meal_ids               INT[]   NOT NULL
-    -- ,total_co2              float   not null
-    -- ,total_waste            float   not null
-    -- ,total_pcs_from_dishes  float   not null
-    -- ,co2_per_customer       float   not null
-    -- ,waste_per_customer     float   not null
-    ,fitness                float   not null
-    ,index                  BIGINT
+CREATE TABLE IF NOT EXISTS meals_planned (
+    menu_id TEXT
+    ,meal   INT     NOT NULL
+    ,pos    FLOAT   NOT NULL
 
-    -- ,constraint pk_menu primary key (date, restaurant)
+    ,CONSTRAINT fk_menu FOREIGN KEY(menu_id) REFERENCES menus(id)
+    ,CONSTRAINT fk_dim_meals FOREIGN KEY(meal) REFERENCES dim_meals(id)
 );
+
