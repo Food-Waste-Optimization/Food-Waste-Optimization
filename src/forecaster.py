@@ -57,7 +57,7 @@ class WholeRestaurantWasteForecaster(Forecaster):
         last_training_date = self.model.training_series.time_index[-1]
         assert isinstance(last_training_date, Timestamp)
 
-        days = len(pd.date_range("2025-03-31", "2025-06-06", freq="b"))
+        days = len(pd.date_range(last_training_date, date, freq="b"))
         if days <= 0:
             logger.error(f"Forecasting date ({date}) must be after {last_training_date.date().strftime(r'%Y-%m-%d')}")
             sys.exit(1)

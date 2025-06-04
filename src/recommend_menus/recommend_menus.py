@@ -57,7 +57,7 @@ def craft_day_level_menu(meals_by_day: dict, restaurant: int, weekday: int, n_ma
 def _parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--restaurant", "-r", type=str, dest="restaurant")
+    parser.add_argument("--restaurant", "-r", type=int, dest="restaurant")
     parser.add_argument("--date_start", "-s", type=str, dest="date_start")
     parser.add_argument("--date_end", "-e", type=str, dest="date_end")
 
@@ -295,16 +295,17 @@ def main():
                     ],
                     separator='|'
                 ).alias('id'),
+                pl.lit(restaurant).alias('restaurant'),
                 'weeklevel_idx',
                 'date',
                 'whole_waste',
                 'whole_pos',
-                'score_week',
+                pl.col('score_week').alias('score'),
                 'meals_planned'
             )
         )  # fmt: skip
 
-        dim_meals_planned = (
+        meals_planned = (
             menus_week
             .select(pl.col('id').alias('menu_id'), 'meals_planned')
             .explode('meals_planned')
@@ -317,10 +318,10 @@ def main():
         date = date_firstweek.strftime(r"%Y-%m-%d")
         path = path_dir_menus / str(restaurant) / f"menus_{date}.xlsx"
         path.parent.mkdir(exist_ok=True, parents=True)
-        menus_week.write_excel(path)
+        menus_week.drop("meals_planned").write_excel(path)
 
-        path = path_dir_menus / str(restaurant) / f"dim_meals_planned_{date}.xlsx"
-        dim_meals_planned.write_excel(path)
+        path = path_dir_menus / str(restaurant) / f"meals_planned_{date}.xlsx"
+        meals_planned.write_excel(path)
 
 
 if __name__ == "__main__":

@@ -226,7 +226,6 @@ Temporary Items
 wandb/
 tb_logs
 uv.lock
-notebooks/
 artifacts/
 logs/
 trained_models
