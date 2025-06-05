@@ -17,7 +17,9 @@ const FetchNames = ({
   const getMealIds = async () => {
     try {
       const response1 = await axios.get(
-        `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${restaurant}&date=${selectedDate}&num_rows=${numRows}&num_weeks=${numWeeks}`
+        `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${restaurant}&date=${selectedDate.format(
+          "YYYY-MM-DD"
+        )}&num_rows=${numRows}&num_weeks=${numWeeks}`
       );
       console.log("Full response from first API:", response1.data);
 

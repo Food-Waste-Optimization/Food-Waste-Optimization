@@ -50,7 +50,9 @@ function Dashboard() {
     setTotalCo2Array([]);
     setShowFetchNames(true); // Show FetchNames after clicking recommend button
 
-    const apiUrl = `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${restaurant}&date=${selectedDate}&num_rows=${numRows}&num_weeks=${numWeeks}`;
+    const apiUrl = `https://megasense-server.cs.helsinki.fi/fwowebserver/recommendation?restaurant=${restaurant}&date=${selectedDate.format(
+      "YYYY-MM-DD"
+    )}&num_rows=${numRows}&num_weeks=${numWeeks}`;
 
     fetch(apiUrl)
       .then((response) => {
