@@ -1,74 +1,24 @@
 """Creates ModelService class that allows requests to AI models."""
 
-import os
+from __future__ import annotations
+
 from itertools import zip_longest
 from pathlib import Path
 
-import lightgbm
-import numpy as np
-import pandas as pd
 import polars as pl
-
-# from darts.models import ARIMA, LightGBMModel, LinearRegressionModel
 from loguru import logger
+from pandas import DataFrame
+
+from src import config
 
 from . import db
-
-RESTAURANTS = ["Viikuna", "Physicum", "Exactum", "Chemicum"]
-ENTRY_TYPES = {
-    "Tiedoitus": "Notification",
-    "Lisuke": "Side dish",
-    "Makeasti": "Sweet",
-}
-
-dim_mealtype2id = pl.DataFrame(
-    [
-        {"meal_type": "meat", "meal_type_enc": 0},
-        {"meal_type": "vegetarian", "meal_type_enc": 1},
-        {"meal_type": "chicken", "meal_type_enc": 2},
-        {"meal_type": "fish", "meal_type_enc": 3},
-        {"meal_type": "vegan", "meal_type_enc": 3},
-    ]
-)
-dim_restaurant2id = pl.DataFrame(
-    [
-        {"restaurant": "phy", "restaurant_enc": 0},
-        {"restaurant": "che", "restaurant_enc": 1},
-        {"restaurant": "exa", "restaurant_enc": 2},
-        {"restaurant": "vik", "restaurant_enc": 3},
-    ]
+from .forecaster import (
+    PerMealPOSForecaster,
+    PerMealPOSForecasterGeneral,
+    WholeRestaurantPOSForecaster,
+    WholeRestaurantWasteForecaster,
 )
 
-
-cols_X = [
-    "meal_id_right",
-    "pcs_mean",
-    "dist",
-    "meal_type_enc",
-    "restaurant_enc",
-    "serving_percent",
-    "weekday_sin",
-    "weekday_cos",
-    "day_sin",
-    "day_cos",
-    "month_sin",
-    "month_cos",
-]
-cols_cat = [
-    "meal_id_right",
-    "meal_type_enc",
-    "restaurant_enc",
-]
-
-
-indices = pl.from_records(
-    [
-        {"restaurant": "phy", "index": 1},
-        {"restaurant": "che", "index": 2},
-        {"restaurant": "exa", "index": 3},
-        {"restaurant": "vik", "index": 4},
-    ]
-)
 DEFAULT_CO2 = 0.4
 DEFAULT_WASTE = 0.01
 
@@ -83,50 +33,60 @@ def _hamming_distance(s1: str, s2: str) -> float:
 class ModelService:
     """Class for handling the connection between models, data and the app."""
 
-    PATH_ROOT_TRAINED_MODEL = Path(os.getenv("TRAINED_MODELS", "/trained_models"))
+    PATH_ROOT_TRAINED_MODEL = Path(config.TRAINED_MODELS)
 
-    def __init__(self):
-        # data is fetched every time init is run, this should not happen\
-        self.models = {
-            "receipt": {},
-            "biowaste": {},
-            "occupancy": {},
-            "meal": {},
-            "receipt_per_day": None,
-            "biowaste_from_meal": {},
-            "co2_from_meal": {},
-            "per_day_POS": None,
-            "encoder": None,
-        }
-        # self._load_receipt_forecaster()
-        # self._load_biowaste_forecaster()
-        # self._load_occupancy_forecaster()
-        # self._load_meal_forecaster()
+    def __init__(
+        self,
+        name_whole_res_waste: str = "whole_restaurant_waste",
+        name_whole_res_pos: str = "whole_restaurant_pos",
+        name_per_meal_pos: str = "per_meal_pos",
+    ) -> None:
+        self.models = {}
 
-        # self._load_receipt_byday_forecaster()
-        # self._load_biowaste_from_meal_forecaster()
-        # self._load_co2_from_meal_forecaster()
+        self.name_whole_res_waste = name_whole_res_waste
+        self.name_whole_res_pos = name_whole_res_pos
+        self.name_per_meal_pos = name_per_meal_pos
 
-        self._load_model_phase4()
+        self._load_models()
 
-        # self.data = data_repo.get_model_fit_data()
-        # self.model = NeuralNetwork(
-        #     data=self.data)
+    def _load_models(self):
+        # =================================================
+        # Load Per meal POS forecasters
+        # =================================================
+        path_dir = ModelService.PATH_ROOT_TRAINED_MODEL / self.name_per_meal_pos / config.MODEL_TAG
+        assert path_dir.exists()
 
-    def _load_model_phase4(self):
-        logger.info("Load trained model for per-meal POS forecast and encoder")
+        self.models[self.name_per_meal_pos] = {}
 
-        path = Path(os.getenv("MODEL_POS_FORECASTING", ""))
-        logger.debug(
-            f"path per-meal POS forecasting: {os.getenv('MODEL_POS_FORECASTING')}"
-        )
-        self.models["per_day_POS"] = lightgbm.Booster(model_file=path)
+        # Load models of meals having historical data
+        for path in path_dir.glob("*"):
+            if not path.is_dir():
+                continue
 
-        path = Path(os.getenv("DIM_MEAL_EMBDS", ""))
-        self.meal_embds = pl.read_parquet(path)
+            self.models[self.name_per_meal_pos][path.stem] = PerMealPOSForecaster.load(path)
 
-        path = Path(os.getenv("DIM_TOPK", ""))
-        self.topK = pl.read_parquet(path)
+        # Load general model
+        self.models[self.name_per_meal_pos]["general"] = PerMealPOSForecasterGeneral.load(path_dir)
+
+        # =================================================
+        # Load Whole restaurant POS forcaster
+        # =================================================
+        path_dir = ModelService.PATH_ROOT_TRAINED_MODEL / self.name_whole_res_pos / config.MODEL_TAG
+        assert path_dir.exists()
+
+        self.models[self.name_whole_res_pos] = {}
+        for path in path_dir.glob("*"):
+            self.models[self.name_whole_res_pos][path.stem] = WholeRestaurantPOSForecaster.load(path)
+
+        # =================================================
+        # Load Whole restaurant waste forcaster
+        # =================================================
+        path_dir = ModelService.PATH_ROOT_TRAINED_MODEL / self.name_whole_res_waste / config.MODEL_TAG
+        assert path_dir.exists()
+
+        self.models[self.name_whole_res_waste] = {}
+        for path in path_dir.glob("*"):
+            self.models[self.name_whole_res_waste][path.stem] = WholeRestaurantWasteForecaster.load(path)
 
     def _post_process(self, prediction):
         if prediction <= 0:
@@ -136,91 +96,58 @@ class ModelService:
 
         return prediction
 
-    def forecast_pos(self, meals: pd.DataFrame) -> pd.DataFrame | None:
-        """Predict the POS for each meal in a specific date given the list of meal ids
+    def forecast_waste_restaurant(self, restaurant: int, date: str) -> DataFrame | None:
+        """Forecast waste for whole restaurant
 
         Args:
-            meals (DataFrame): input dataframe
+            restaurant (int): restaurant id
+            date (str): date to forecast. Come under format '2025-01-01'
 
         Returns:
-            DataFrame|None: predicted POS
+            DataFrame|None: forecasted waste in kg or None if error
         """
+        if str(restaurant) not in self.models[self.name_whole_res_waste]:
+            logger.error(f"Forecast whole restaurant waste: restaurant not found: {restaurant}")
 
-        # Read from database the info of given meal_ids
-        dim_meals = pl.from_dataframe(
-            db.fetch_meal_info_with_ids(meal_ids=meals["meal_id"].tolist())
-        )
-
-        if len(dim_meals) == 0:
             return None
 
-        meal_types = dim_meals.select(
-            pl.col("id").alias("meal_id"), pl.col("type").alias("meal_type")
-        )
+        return self.models[self.name_whole_res_waste][str(restaurant)].forecast(date=date)
 
-        # logger.debug(meal_types)
-        # logger.debug(pl.from_dataframe(meals))
+    def forecast_pos_per_meal(self, restaurant: int, meal_id: int, date: str, meal_type: int | None = None) -> float:
+        model_name = f"{restaurant}_{meal_id}"
 
-        feat = (
-            pl.from_dataframe(meals)
-            .join(meal_types, on="meal_id", how="left")
-            .join(self.topK, on=["restaurant", "meal_type"], how="left")
-            .join(self.meal_embds, on=["meal_id", "meal_id_right"], how="left")
-        )
-
-        # Encode restaurant
-        feat = feat.join(dim_restaurant2id, on="restaurant")
-
-        # Encode meal_type
-        feat = feat.join(dim_mealtype2id, on="meal_type")
-
-        # Encode datetime
-        feat = (
-            feat.with_columns(
-                pl.col("date").dt.weekday().alias("weekday"),
-                pl.col("date").dt.day().alias("day"),
-                pl.col("date").dt.month().alias("month"),
+        if model_name not in self.models[self.name_per_meal_pos]:
+            assert meal_type is not None
+            out = self.models[self.name_per_meal_pos]["general"].forecast(
+                date=date, restaurant=restaurant, meal_type=meal_type
             )
-            .with_columns(
-                (pl.col("weekday") * 2 * np.pi / 7).sin().alias("weekday_sin"),
-                (pl.col("weekday") * 2 * np.pi / 7).cos().alias("weekday_cos"),
-                (pl.col("day") * 2 * np.pi / 31).sin().alias("day_sin"),
-                (pl.col("day") * 2 * np.pi / 31).cos().alias("day_cos"),
-                (pl.col("month") * 2 * np.pi / 12).sin().alias("month_sin"),
-                (pl.col("month") * 2 * np.pi / 12).cos().alias("month_cos"),
+        else:
+            out = self.models[self.name_per_meal_pos][model_name].forecast(
+                date=date, restaurant=restaurant, meal_id=meal_id
             )
-            .drop("weekday", "day", "month")
-        )
 
-        # Add `serving_percent`
-        feat = feat.with_columns(pl.lit(1.0).alias("serving_percent"))
+        pos = out["forecasted"].item()
 
-        # Prepare data for inference
-        X = feat.select(cols_X).to_pandas()
+        return pos
 
-        for col in cols_cat:
-            X[col] = X[col].astype("category")
+    def forecast_pos_restaurant(self, restaurant: int, date: str) -> DataFrame | None:
+        if str(restaurant) not in self.models[self.name_whole_res_pos]:
+            logger.error(f"Forecast whole restaurant pos: restaurant not found: {restaurant}")
 
-        # Predict
-        pcs_pred = np.clip(self.models["per_day_POS"].predict(X), a_min=0, a_max=None)
-        feat = feat.with_columns(pl.Series(pcs_pred).alias("pcs_pred"))
+            return None
 
-        output = (
-            feat.group_by(["index", "date", "restaurant", "meal_id"])
-            .agg(
-                pl.col("pcs_pred").mean(),
-            )
-            .to_pandas()
-        )
+        return self.models[self.name_whole_res_pos][str(restaurant)].forecast(date=date)
 
-        return output
-
-    def get_meals_prediction(self, meals_data: dict) -> list[dict]:
+    def get_meals_prediction(self, restaurant: int, meals_data: dict) -> list[dict]:
         """Predict POS, waste and CO2 amount for meals given the menu
 
         Returns:
             list[dict]: List of records. Each record is a meal in restaurant with its predictions.
         """
+
+        # =================================================
+        # Find meal_id given the names in 'meals_data'
+        # =================================================
 
         # Process meals_data to suitable format
         date = meals_data["date"]
@@ -237,7 +164,7 @@ class ModelService:
 
         names_meal = dim_meals.select("meal_id", "name").explode("name")
 
-        menus: pl.DataFrame = (
+        meal_ids = (
             meals
             # Find most probable meal in the database for each entry
             .join(names_meal, how="cross")
@@ -257,55 +184,37 @@ class ModelService:
             # Get meal_type
             .join(dim_meals.select("meal_id", "meal_type"), on="meal_id", how="left")
 
-
-            # Add column `date`
-            .with_columns(pl.lit(date).str.to_date().alias("date"))
-
-
-            # Add column `index` (indicate which meals come in same menu)
-            .join(indices, on="restaurant", how="left")
+            ["meal_id"]
+            .to_list()
         )  # fmt: skip
 
-        # Predict POS, waste and CO2
-        pos = self.forecast_pos(
-            menus
-            .select("index", "meal_id", "date", "restaurant")
-            .to_pandas()
-        )  # fmt: skip
-        assert pos is not None
-        pos = pos[["meal_id", "restaurant", "pcs_pred"]].rename(
-            columns={"pcs_pred": "pcs"}
-        )
+        # logger.debug(f"meal_ids = {meal_ids}")
 
-        meal_ids = pos["meal_id"].tolist()
-        co2 = db.fetch_co2_with_ids(meal_ids=meal_ids)
-        biowaste = db.fetch_waste_with_ids(meal_ids=meal_ids)
+        # =================================================
+        # Predict per-meal POS, waste and CO2
+        # =================================================
 
-        # fmt: off
-        menus = (
-            menus
-            .join(pl.from_pandas(pos), on=["meal_id", "restaurant"], how="left")
-            .join(pl.from_pandas(co2), on="meal_id", how="left")
-            .join(pl.from_pandas(biowaste), on="meal_id", how="left")
+        # Forecast whole-restaurant waste
+        df = model.forecast_waste_restaurant(restaurant, date)
+        assert df is not None
+        waste_whole_res = df["forecasted"]
+
+        # Forecast per-meal POS
+        meals = db.fetch_meal_info_with_ids(meal_ids=meal_ids)
+        meals["pcs"] = meals.apply(
+            lambda r: model.forecast_pos_per_meal(restaurant, r["id"], date, r["meal_type"]),
+            axis=1,
         )
-        # fmt: on
 
         # Post-process
-        menus = (
-            menus
-            
-            # Remove unneccesary columns
-            .drop("restaurant", "index", "date")
+        meals["waste"] = waste_whole_res / meals["pcs"].sum()
+        meals["name"] = meals_data["meals"]
+        meals.drop(columns=["restaurants", "attributes", "meal_type", "names"], inplace=True)
+        meals.rename(columns={"id": "meal_id", "meal_type_str": "meal_type"}, inplace=True)
 
-            # Remove meals with unsuitable meal_type
-            .join(dim_mealtype2id.select('meal_type'), on='meal_type', how='inner')
+        # logger.debug(f"hrerere: meals = {meals}")
 
-            # Fill null cells of column `co2` and `waste`
-            .with_columns(
-                pl.col('co2').fill_null(DEFAULT_CO2),
-                pl.col('waste').fill_null(DEFAULT_WASTE),
-            )
+        return meals.to_dict(orient="records")
 
-        )  # fmt: skip
 
-        return menus.to_dicts()
+model = ModelService()

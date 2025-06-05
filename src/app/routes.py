@@ -2,14 +2,16 @@ from datetime import datetime
 
 import pandas as pd
 from flask import Blueprint, make_response, render_template, request
-from pandas._libs.tslibs.parsing import DateParseError
+from loguru import logger
 
-from src.services import db, model_service
-from src.utils.meals import get_meal_data
+from src.services import db
+from src.services.model_service import model
+from src.utils import meals
 
 blueprint = Blueprint("fwo", __name__)
-model = model_service.ModelService()
 
+DEFAULT_CO2 = 0.4
+DEFAULT_WASTE = 0.01
 URL_YLVA_API = "https://unicafe.fi/wp-json/swiss/v1/restaurants?wpml_language=en"
 
 # == APIs for Others ===================================================================================================================
@@ -31,18 +33,16 @@ def initial_view():
 
 # == APIs for Forecast ===================================================================================================================
 @blueprint.route("/forecast/pos")
-def forecast_receipt():
+def forecast():
     resp = None
 
     # Parse necessary arguments and check
-    restaurant = request.args.get("restaurant", "")
-    if restaurant == "" or restaurant.lower() not in [
-        "chemicum",
-        "physicum",
-        "exactum",
-        "viikuna",
-    ]:
+    restaurant = request.args.get("restaurant", None)
+    if restaurant is None or not isinstance(restaurant, str):
         resp = make_response("Invalid query argument: 'restaurant'", 400)
+    restaurant_info = db.fetch_restaurant_info(restaurant=restaurant)
+    if restaurant_info is None:
+        resp = make_response(f"Specified restaurant not found in database: {restaurant}", 400)
 
     date = request.args.get("date", "")
     if date == "":
@@ -56,47 +56,48 @@ def forecast_receipt():
         meal_ids = list(map(int, meal_ids_raw.split(",")))
         assert len(meal_ids) > 0
 
-        match restaurant.lower():
-            case "chemicum":
-                restaurant = "che"
-            case "exactum":
-                restaurant = "exa"
-            case "physicum":
-                restaurant = "phy"
-            case "viikuna":
-                restaurant = "vik"
+        restaurant_id = restaurant_info["restaurant_id"]
+        restaurant_short = restaurant_info["restaurant_short"]
 
         meals = pd.DataFrame(
             {
                 "index": 0,
                 "meal_id": meal_ids,
-                "restaurant": restaurant,
+                "restaurant": restaurant_id,
                 "date": pd.to_datetime(date),
             }
         )
 
-        # Predict pcs per meal
-        df = model.forecast_pos(meals)
-        if df is None:
-            resp = make_response(f"meal id not valid: {meal_ids_raw}", 400)
-        else:
-            # Fetch info of CO2, waste and pcs of whole
-            co2 = db.fetch_co2_with_ids(meal_ids=meal_ids)
-            biowaste = db.fetch_waste_with_ids(meal_ids=meal_ids)
-            pcs_whole = int(
-                db.fetch_pos_whole(restaurant=restaurant, date=date)["pcs_whole"]
-            )
+        # Forecast whole-restaurant waste
+        df = model.forecast_waste_restaurant(restaurant_id, date)
+        assert df is not None
+        waste_whole_res = df["forecasted"]
 
-            df = df.merge(co2, on="meal_id", how="left").merge(
-                biowaste, on="meal_id", how="left"
-            )
-            df["co2"] = df["co2"].fillna(0.4)
-            df["waste"] = df["waste"].fillna(0.01)
+        # Forecast whole-restaurant POS
+        df = model.forecast_pos_restaurant(restaurant_id, date)
+        assert df is not None
+        pos_whole_res = df[df["date"] == date]["forecasted"].item()
 
-            out = {"meals": df.to_dict(orient="records"), "whole": pcs_whole}
+        # Forecast per-meal POS
+        meals = db.fetch_meal_info_with_ids(meal_ids=meal_ids)
+        meals["pcs_pred"] = meals.apply(
+            lambda r: model.forecast_pos_per_meal(restaurant_id, r["id"], date, r["meal_type"]),
+            axis=1,
+        )
 
-            resp = make_response(out, 200)
-            resp.headers.set("Content-Type", "application/json")
+        # Post-process
+        meals["date"] = date
+        meals["index"] = 0
+        meals.rename(columns={"id": "meal_id"}, inplace=True)
+        meals["restaurant"] = restaurant_short
+        meals["waste"] = waste_whole_res / meals["pcs_pred"].sum()
+        meals["co2"] = meals["co2"].fillna(DEFAULT_CO2)
+        meals.drop(columns=["names", "restaurants", "attributes"], inplace=True)
+
+        out = {"meals": meals.to_dict(orient="records"), "whole": pos_whole_res}
+
+        resp = make_response(out, 200)
+        resp.headers.set("Content-Type", "application/json")
 
     return resp
 
@@ -106,20 +107,20 @@ def visualize():
     resp = None
 
     restaurant = request.args.get("restaurant", None)
-    if (
-        restaurant is None
-        or not isinstance(restaurant, str)
-        or restaurant.lower() not in ["chemicum", "physicum", "exactum", "viikuna"]
-    ):
+    if restaurant is None or not isinstance(restaurant, str):
         resp = make_response("Invalid query argument: 'restaurant'", 400)
+    restaurant_info = db.fetch_restaurant_info(restaurant=restaurant)
+    if restaurant_info is None:
+        resp = make_response(f"Specified restaurant not found in database: {restaurant}", 400)
 
     if resp is None:
         assert isinstance(restaurant, str)
-        meal_data = get_meal_data(restaurant, URL_YLVA_API, datetime.today())
+        meal_data = meals.get_meal_data(restaurant, URL_YLVA_API, datetime.today())
+        assert meal_data
 
         # Predict
         if len(meal_data["meals"]) > 0:
-            meal_info = model.get_meals_prediction(meal_data)
+            meal_info = model.get_meals_prediction(restaurant_info["restaurant_id"], meal_data)
         else:
             meal_info = []
 
@@ -138,24 +139,24 @@ def recommend_menu():
     resp = None
 
     # Parse necessary arguments and check
-    restaurant = request.args.get("restaurant", "")
-    if restaurant == "" or restaurant.lower() not in [
-        "chemicum",
-        "physicum",
-        "exactum",
-        "viikuna",
-    ]:
+    restaurant = request.args.get("restaurant", None)
+    if restaurant is None or not isinstance(restaurant, str):
         resp = make_response("Invalid query argument: 'restaurant'", 400)
+    restaurant_info = db.fetch_restaurant_info(restaurant=restaurant)
+    if restaurant_info is None:
+        resp = make_response(f"Specified restaurant not found in database: {restaurant}", 400)
 
-    date = request.args.get("date", "")
-    if date == "":
+    date = request.args.get("date", None)
+    if date is None:
         resp = make_response("Invalid query argument: 'date'", 400)
 
     try:
         assert date
-        pd.to_datetime(date)
-    except DateParseError:
-        resp = make_response("Invalid query argument: 'date'", 400)
+        datetime.strptime(date, "%Y-%M-%d")
+    except ValueError:
+        logger.error(f"Invalid query argument: 'date': {date}")
+
+        resp = make_response(f"Invalid query argument: 'date': {date}", 400)
 
     num_rows = request.args.get("num_rows", -1)
     if num_rows == -1:
@@ -169,15 +170,7 @@ def recommend_menu():
         num_weeks = int(num_weeks)
         num_rows = int(num_rows)
 
-        match restaurant.lower():
-            case "chemicum":
-                restaurant = "che"
-            case "exactum":
-                restaurant = "exa"
-            case "physicum":
-                restaurant = "phy"
-            case "viikuna":
-                restaurant = "vik"
+        restaurant_id = restaurant_info["restaurant_id"]
 
         payload = {}
         for i in range(num_weeks):
@@ -185,24 +178,21 @@ def recommend_menu():
                 date_from = pd.to_datetime(date)
             else:
                 date_from = date_from + pd.Timedelta(weeks=1)
-            date_to = date_from + pd.Timedelta(days=5)
 
             # Fetch necessary data
             menus = db.fetch_menu(
-                "menu",
                 date_from=date_from,
-                date_to=date_to,
-                restaurant=restaurant,
+                restaurant=restaurant_id,
                 num_rows=num_rows,
             )
 
             # Make up output
             buff = []
             if len(menus) > 0:
-                menus["date"] = pd.to_datetime(menus["date"]).dt.strftime("%Y-%m-%d")
-                for rank in menus["rank"].unique():
-                    df = menus[menus["rank"] == rank]
-                    buff.append(df[["date", "meal_ids"]].to_dict(orient="records"))
+                for weeklevel_idx in menus["weeklevel_idx"].unique():
+                    df = menus[menus["weeklevel_idx"] == weeklevel_idx].drop(columns=["weeklevel_idx", "score"])
+
+                    buff.append(df.to_dict(orient="records"))
 
             payload[f"week_{i + 1}"] = buff
 
@@ -218,32 +208,19 @@ def get_meal_info():
 
     # Parse necessary arguments and check
     restaurant = request.args.get("restaurant", None)
-    if (
-        restaurant is None
-        or not isinstance(restaurant, str)
-        or restaurant.lower() not in ["chemicum", "physicum", "exactum", "viikuna"]
-    ):
+    if restaurant is None or not isinstance(restaurant, str):
         resp = make_response("Invalid query argument: 'restaurant'", 400)
+    restaurant_info = db.fetch_restaurant_info(restaurant=restaurant)
+    if restaurant_info is None:
+        resp = make_response(f"Specified restaurant not found in database: {restaurant}", 400)
 
     schoolyear = request.args.get("schoolyear", "24-25")
 
     if resp is None:
-        assert isinstance(restaurant, str)
-
-        match restaurant.lower():
-            case "chemicum":
-                restaurant = "che"
-            case "exactum":
-                restaurant = "exa"
-            case "physicum":
-                restaurant = "phy"
-            case "viikuna":
-                restaurant = "vik"
+        restaurant_id = restaurant_info["restaurant_id"]
 
         # Fetch necessary data
-        meals = db.fetch_meal_info_with_restaurant(
-            restaurant=restaurant, schoolyear=schoolyear
-        )
+        meals = db.fetch_meal_info_with_restaurant(restaurant=restaurant_id, schoolyear=schoolyear)
 
         # Make up output
         buff = meals.to_dict(orient="records")

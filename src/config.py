@@ -1,6 +1,12 @@
 """Configure different launch modes."""
 
 import os
+import sys
+
+from dotenv import load_dotenv
+from loguru import logger
+
+load_dotenv()
 
 
 class DefaultConfiguration:
@@ -45,3 +51,17 @@ def set_configuration(env):
     ConfigurationClass = config.get(env, DefaultConfiguration)
     ConfigurationClass.set_config_variables()
     return ConfigurationClass
+
+
+def _load_env(name: str) -> str:
+    env_var = os.getenv(name)
+    if env_var is None:
+        logger.error(f"Env variable not found: {name}")
+        sys.exit(1)
+
+    return env_var
+
+
+MODEL_TAG = _load_env("MODEL_TAG")
+TRAINED_MODELS = _load_env("TRAINED_MODELS")
+FLASK_ENV = os.getenv("FLASK_ENV", "development")

@@ -36,43 +36,33 @@ def db_connect(func):
 
 
 @db_connect
-def fetch_menu(table_name: str = "menu", **kwargs) -> pd.DataFrame:
+def fetch_menu(table_menus: str = "menus", table_meals_planned: str = "meals_planned", **kwargs) -> pd.DataFrame:
     query = """
-        with tmp1 as (
+        select
+            t2.weeklevel_idx
+            ,to_char(date, 'YYYY-MM-DD') as date
+            ,avg(t2.score) as score
+            ,array_agg(t3.meal) as meal_ids
+        from
+            {menus} t1 
+        JOIN (
             select
-                restaurant
-                , index
-                , sum(fitness) as fitness
-            from {table}
+                weeklevel_idx
+                , score
+            from
+                {menus}
             where 1=1
                 and restaurant = {restaurant}
-                and "date" < {date_to}
-                and "date" >= {date_from}
-            group by restaurant, index
-            order by fitness
+                and date = {date_from}
+            order by score
             limit {num_rows}
-        ), tmp2 as (
-            SELECT
-                *,
-                rank() over (PARTITION BY restaurant order by fitness) as rank
-            from tmp1
-        )
-            select
-                {table}.index,
-                date,
-                {table}.restaurant,
-                meal_ids,
-                {table}.fitness,
-                tmp2.rank
-            from {table}
-            JOIN tmp2 ON 1=1
-                and {table}.restaurant = tmp2.restaurant
-                and {table}.index = tmp2.index
-            where 1=1
-                and {table}.restaurant = {restaurant}
-                and {table}.date < {date_to}
-                and {table}.date >= {date_from}
-            ORDER BY rank, date
+        ) t2 on 1=1
+            and t1.weeklevel_idx = t2.weeklevel_idx
+        left JOIN {meals_planned} t3 on 1=1
+            and t3.menu_id = t1.id
+
+        GROUP BY t2.weeklevel_idx, date
+        ORDER BY score, date
         ;
     """
 
@@ -80,9 +70,9 @@ def fetch_menu(table_name: str = "menu", **kwargs) -> pd.DataFrame:
     cur = kwargs["cur"]
 
     stmt = sql.SQL(query).format(
-        table=sql.Identifier(table_name),
+        menus=sql.Identifier(table_menus),
+        meals_planned=sql.Identifier(table_meals_planned),
         restaurant=sql.Literal(kwargs["restaurant"]),
-        date_to=sql.Literal(kwargs["date_to"]),
         date_from=sql.Literal(kwargs["date_from"]),
         num_rows=sql.Literal(kwargs["num_rows"]),
     )
@@ -97,21 +87,26 @@ def fetch_menu(table_name: str = "menu", **kwargs) -> pd.DataFrame:
 
 
 @db_connect
-def fetch_meal_info(table: str = "meals", **kwargs) -> pd.DataFrame:
+def fetch_meal_info(table: str = "dim_meals", table_dim_meal_types: str = "dim_meal_types", **kwargs) -> pd.DataFrame:
     query = """
         select
-            {table}.meal_id
-            , {table}.meal_type
-            , {table}.aliases as name
-            , {table}.attributes
-        from {table}
+            t1.id as meal_id
+            , t2.meal_type_en as meal_type
+            , t1.names as name
+            , t1.attributes
+        from {table} t1
+        left join {table_dim_meal_types} t2 on 1=1
+            and t1.meal_type = t2.meal_type_id
         ;
     """
 
     # Trigger query
     cur = kwargs["cur"]
 
-    stmt = sql.SQL(query).format(table=sql.Identifier(table))
+    stmt = sql.SQL(query).format(
+        table=sql.Identifier(table),
+        table_dim_meal_types=sql.Identifier(table_dim_meal_types),
+    )
     # logger.debug(stmt.as_string())
 
     cur.execute(stmt)
@@ -123,17 +118,21 @@ def fetch_meal_info(table: str = "meals", **kwargs) -> pd.DataFrame:
 
 
 @db_connect
-def fetch_meal_info_with_restaurant(table: str = "meals", **kwargs) -> pd.DataFrame:
+def fetch_meal_info_with_restaurant(
+    table: str = "dim_meals", table_dim_meal_types: str = "dim_meal_types", **kwargs
+) -> pd.DataFrame:
     query = """
         select
-            {table}.meal_id
-            , {table}.meal_type
-            , {table}.aliases[1] as name
-            , {table}.attributes
-        from {table}
+            t1.id as meal_id
+            , t2.meal_type_en as meal_type
+            , t1.names[1] as name
+            , t1.attributes
+        from {table} t1
+        left join {table_dim_meal_types} t2 on 1=1
+            and t1.meal_type = t2.meal_type_id
         where 1=1
-            and {restaurant} = any({table}.restaurant)
-            and {table}.schoolyear = {schoolyear}
+            and {restaurant} = any(t1.restaurants)
+            and t1.schoolyear = {schoolyear}
         ;
     """
 
@@ -142,6 +141,7 @@ def fetch_meal_info_with_restaurant(table: str = "meals", **kwargs) -> pd.DataFr
 
     stmt = sql.SQL(query).format(
         table=sql.Identifier(table),
+        table_dim_meal_types=sql.Identifier(table_dim_meal_types),
         restaurant=sql.Literal(kwargs["restaurant"]),
         schoolyear=sql.Literal(kwargs["schoolyear"]),
     )
@@ -156,23 +156,36 @@ def fetch_meal_info_with_restaurant(table: str = "meals", **kwargs) -> pd.DataFr
 
 
 @db_connect
-def fetch_meal_info_with_ids(table: str = "meals", **kwargs) -> pd.DataFrame:
+def fetch_meal_info_with_ids(
+    table: str = "dim_meals", table_dim_meal_types: str = "dim_meal_types", **kwargs
+) -> pd.DataFrame:
     query = """
         select
-            meal_id as "id"
-            , meal_type as type
-        from {table}
-        where meal_id = ANY(%s)
+            t1.id as "id"
+            , t1.names
+            , t1.restaurants
+            , t1.meal_type
+            , t2.meal_type_en as meal_type_str
+            , t1.attributes
+            , t1.co2
+        from {table} t1
+        left join {table_dim_meal_types} t2 on 1=1
+            and t1.meal_type = t2.meal_type_id
+        where id = ANY({meal_ids})
         ;
     """
 
     # Trigger query
     cur = kwargs["cur"]
 
-    stmt = sql.SQL(query).format(table=sql.Identifier(table))
+    stmt = sql.SQL(query).format(
+        table=sql.Identifier(table),
+        meal_ids=sql.Literal(kwargs["meal_ids"]),
+        table_dim_meal_types=sql.Identifier(table_dim_meal_types),
+    )
     # logger.debug(stmt.as_string())
 
-    cur.execute(stmt, [(kwargs["meal_ids"])])
+    cur.execute(stmt)
 
     ret = cur.fetchall()
     out = pd.DataFrame.from_records(ret)
@@ -181,64 +194,14 @@ def fetch_meal_info_with_ids(table: str = "meals", **kwargs) -> pd.DataFrame:
 
 
 @db_connect
-def fetch_co2_with_ids(table: str = "co2", **kwargs) -> pd.DataFrame:
+def fetch_restaurant_info(table: str = "dim_restaurants", **kwargs) -> dict:
     query = """
         select
-            meal_id
-            , co2
-        from {table}
-        where meal_id = ANY(%s)
-        ;
-    """
-
-    # Trigger query
-    cur = kwargs["cur"]
-
-    stmt = sql.SQL(query).format(table=sql.Identifier(table))
-    # logger.debug(stmt.as_string())
-
-    cur.execute(stmt, [(kwargs["meal_ids"])])
-
-    ret = cur.fetchall()
-    out = pd.DataFrame.from_records(ret)
-
-    return out
-
-
-@db_connect
-def fetch_waste_with_ids(table: str = "biowaste", **kwargs) -> pd.DataFrame:
-    query = """
-        select
-            meal_id
-            , waste
-        from {table}
-        where meal_id = ANY(%s)
-        ;
-    """
-
-    # Trigger query
-    cur = kwargs["cur"]
-
-    stmt = sql.SQL(query).format(table=sql.Identifier(table))
-    # logger.debug(stmt.as_string())
-
-    cur.execute(stmt, [(kwargs["meal_ids"])])
-
-    ret = cur.fetchall()
-    out = pd.DataFrame.from_records(ret)
-
-    return out
-
-
-@db_connect
-def fetch_pos_whole(table: str = "pieces_whole", **kwargs) -> dict:
-    query = """
-        select
-            date
+            restaurant_id
             , restaurant
-            , pcs as pcs_whole
+            , restaurant_short
         from {table}
-        where restaurant = {restaurant} and date = {date}
+        where POSITION(LOWER({restaurant}) in LOWER(restaurant)) > 0
         ;
     """
 
@@ -248,9 +211,9 @@ def fetch_pos_whole(table: str = "pieces_whole", **kwargs) -> dict:
     stmt = sql.SQL(query).format(
         table=sql.Identifier(table),
         restaurant=sql.Literal(kwargs["restaurant"]),
-        date=sql.Literal(kwargs["date"]),
     )
 
+    # logger.debug(stmt.as_string())
     cur.execute(stmt)
 
     out = cur.fetchone()

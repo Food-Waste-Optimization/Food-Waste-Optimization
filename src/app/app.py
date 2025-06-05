@@ -1,17 +1,14 @@
 """Create and configure Flask-app object with CORS-support."""
 
-import os
-
 from flask import Flask
 from flask_cors import CORS
 from loguru import logger
 
-from ..config import set_configuration
+from src import config
+
 from .routes import blueprint
 
-FLASK_ENV = os.getenv("FLASK_ENV", "")
-
-logger.info(f"Work at FLASK_ENV: {FLASK_ENV}")
+logger.info(f"Work at FLASK_ENV: {config.FLASK_ENV}")
 
 
 def create_app():
@@ -21,12 +18,15 @@ def create_app():
         Flask: Flask-app object.
     """
 
-    if FLASK_ENV == "development":
-        template_dir = "src/frontend/dist"
-    elif FLASK_ENV == "production":
-        template_dir = "/build/dist"
-    else:
-        raise NotImplementedError()
+    match config.FLASK_ENV:
+        case "development":
+            template_dir = "src/frontend/dist"
+        case "production":
+            template_dir = "/build/dist"
+        case _:
+            raise NotImplementedError()
+
+    logger.debug(f"template_dir = {template_dir}")
 
     app = Flask(
         __name__,
@@ -37,11 +37,8 @@ def create_app():
     CORS(app)
     app.register_blueprint(blueprint)
 
-    configuration_mode = os.getenv("FLASK_ENV")
-    app.config.from_object(set_configuration(configuration_mode))
-
-    #
-    # init_routes(app)
+    configuration_mode = config.FLASK_ENV
+    app.config.from_object(config.set_configuration(configuration_mode))
 
     return app
 
