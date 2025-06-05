@@ -26,8 +26,6 @@ def create_app():
         case _:
             raise NotImplementedError()
 
-    logger.debug(f"template_dir = {template_dir}")
-
     app = Flask(
         __name__,
         static_url_path="/",

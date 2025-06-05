@@ -6,9 +6,6 @@ services:
     volumes:
       - ${TRAINED_MODELS}:/trained_models
     environment:
-      - MODEL_POS_FORECASTING=${MODEL_POS_FORECASTING}
-      - DIM_MEAL_EMBDS=${DIM_MEAL_EMBDS}
-      - DIM_TOPK=${DIM_TOPK}
       - DB_PORT=${DB_PORT}
       - DB_PWD=${DB_PWD}
       - DB_USER=${DB_USER}
@@ -16,6 +13,7 @@ services:
       - DB_HOST=${DB_HOST}
       - VITE_URI_PRODUCTION=${VITE_URI_PRODUCTION}
       - FLASK_ENV=production
+      - MODEL_TAG=${MODEL_TAG}
 
     ports:
       - 1000:5000

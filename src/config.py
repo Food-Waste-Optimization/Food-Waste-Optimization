@@ -63,5 +63,5 @@ def _load_env(name: str) -> str:
 
 
 MODEL_TAG = _load_env("MODEL_TAG")
-TRAINED_MODELS = _load_env("TRAINED_MODELS")
+TRAINED_MODELS = os.getenv("TRAINED_MODELS", "/trained_models")
 FLASK_ENV = os.getenv("FLASK_ENV", "development")
